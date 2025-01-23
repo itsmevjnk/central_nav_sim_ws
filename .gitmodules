@@ -1,0 +1,9 @@
+[submodule "src/central_nav"]
+	path = src/central_nav
+	url = https://github.com/itsmevjnk/centralised_robot_nav.git
+[submodule "src/tb3_multi_sim"]
+	path = src/tb3_multi_sim
+	url = https://github.com/itsmevjnk/tb3_multi_sim.git
+[submodule "src/ros2_pose_publisher"]
+	path = src/ros2_pose_publisher
+	url = https://github.com/itsmevjnk/ros2_pose_publisher.git
