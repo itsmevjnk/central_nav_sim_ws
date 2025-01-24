@@ -7,3 +7,6 @@
 [submodule "src/ros2_pose_publisher"]
 	path = src/ros2_pose_publisher
 	url = https://github.com/itsmevjnk/ros2_pose_publisher.git
+[submodule "src/nav2_goal_cancel"]
+	path = src/nav2_goal_cancel
+	url = https://github.com/itsmevjnk/nav2_goal_cancel.git
