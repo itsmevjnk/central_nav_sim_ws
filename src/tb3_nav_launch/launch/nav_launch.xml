@@ -5,7 +5,7 @@
     <arg name="domain" /> <!-- centralised navigation node's domain -->
     
     <arg name="model" default="waffle" />
-    <arg name="map" default="$(find-pkg-share tb3_nav_launch)/map/world_2.0_0.0.yaml" />
+    <arg name="map" default="$(find-pkg-share tb3_nav_launch)/map/world.yaml" />
 
     <arg name="params_file" default="" /> <!-- if specified will override blind -->
 

@@ -1,4 +1,4 @@
-image: world_2.0_0.0.pgm
+image: world.pgm
 mode: trinary
 resolution: 0.05
 origin: [-2.92, -2.6, 0]
