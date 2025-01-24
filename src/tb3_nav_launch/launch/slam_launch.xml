@@ -1,0 +1,11 @@
+<launch>
+    <arg name="use_sim_time" default="true" /> <!-- since we're simulating in Gazebo -->
+
+    <include file="$(find-pkg-share slam_toolbox)/launch/online_async_launch.py">
+        <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    </include>
+
+    <node pkg="rviz2" exec="rviz2" name="rviz" args="-d $(find-pkg-share tb3_nav_launch)/rviz/slam.rviz">
+        <param name="use_sim_time" value="$(var use_sim_time)" />
+    </node>
+</launch>

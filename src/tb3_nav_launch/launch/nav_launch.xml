@@ -1,0 +1,35 @@
+<launch>
+    <arg name="use_sim_time" default="true" /> <!-- since we're simulating in Gazebo -->
+
+    <arg name="name" />
+    <arg name="domain" /> <!-- centralised navigation node's domain -->
+    
+    <arg name="model" default="waffle" />
+    <arg name="map" default="$(find-pkg-share tb3_nav_launch)/map/world_2.0_0.0.yaml" />
+
+    <arg name="params_file" default="" /> <!-- if specified will override blind -->
+
+    <arg name="rviz" default="true" />
+    <node name="rviz" pkg="rviz2" exec="rviz2" args="-d $(find-pkg-share nav2_bringup)/rviz/nav2_default_view.rviz" if="$(var rviz)" output="screen">
+        <param name="use_sim_time" value="$(var use_sim_time)" />
+    </node>
+
+    <arg name="blind" default="true" /> <!-- blind navigation (i.e. can't see other robot) -->
+    <let name="nav2_params" value="$(var params_file)" />
+    <group if="$(eval '\'$(var nav2_params)\' == \'\'')" scoped="false">
+        <let if="$(var blind)" name="nav2_params" value="$(find-pkg-share tb3_nav_launch)/config/$(var model)_blind.yaml"/>
+        <let unless="$(var blind)" name="nav2_params" value="$(find-pkg-share turtlebot3_navigation2)/param/$(var model).yaml"/>
+    </group>
+
+    <include file="$(find-pkg-share nav2_bringup)/launch/bringup_launch.py">
+        <arg name="use_sim_time" value="$(var use_sim_time)" />
+        <arg name="map" value="$(var map)" />
+        <arg name="params_file" value="$(var nav2_params)" />
+    </include>
+
+    <include file="$(find-pkg-share central_nav)/launch/robot_launch.xml">
+        <arg name="name" value="$(var name)" />
+        <arg name="domain" value="$(var domain)" />
+        <arg name="use_sim_time" value="$(var use_sim_time)" />
+    </include>
+</launch>
