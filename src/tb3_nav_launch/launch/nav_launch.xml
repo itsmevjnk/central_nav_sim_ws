@@ -32,4 +32,6 @@
         <arg name="domain" value="$(var domain)" />
         <arg name="use_sim_time" value="$(var use_sim_time)" />
     </include>
+
+    <include file="$(find-pkg-share nav2_cancel_stopper)/launch/stopper_launch.xml" />
 </launch>
