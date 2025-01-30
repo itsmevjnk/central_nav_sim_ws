@@ -7,7 +7,7 @@
   <maintainer email="ngtv0404@gmail.com">itsmevjnk</maintainer>
   <license>TODO: License declaration</license>
 
-  <exec_depend>turtlebot3_navigation2</exec_depend>
+  <exec_depend>nav2_bringup</exec_depend>
   <exec_depend>central_nav</exec_depend>
   <exec_depend>slam_toolbox</exec_depend>
   <exec_depend>rviz2</exec_depend>

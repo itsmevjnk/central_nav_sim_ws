@@ -18,7 +18,7 @@
     <let name="nav2_params" value="$(var params_file)" />
     <group if="$(eval '\'$(var nav2_params)\' == \'\'')" scoped="false">
         <let if="$(var blind)" name="nav2_params" value="$(find-pkg-share tb3_nav_launch)/config/$(var model)_blind.yaml"/>
-        <let unless="$(var blind)" name="nav2_params" value="$(find-pkg-share turtlebot3_navigation2)/param/$(var model).yaml"/>
+        <let unless="$(var blind)" name="nav2_params" value="$(find-pkg-share tb3_nav_launch)/config/$(var model).yaml"/>
     </group>
 
     <include file="$(find-pkg-share nav2_bringup)/launch/bringup_launch.py">
