@@ -13,3 +13,6 @@
 [submodule "src/nav2_cancel_stopper"]
 	path = src/nav2_cancel_stopper
 	url = https://github.com/itsmevjnk/nav2_cancel_stopper.git
+[submodule "src/nav2_random_goal"]
+	path = src/nav2_random_goal
+	url = https://github.com/itsmevjnk/nav2_random_goal.git
