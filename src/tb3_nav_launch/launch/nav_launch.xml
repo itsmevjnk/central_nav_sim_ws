@@ -14,7 +14,7 @@
         <param name="use_sim_time" value="$(var use_sim_time)" />
     </node>
 
-    <arg name="blind" default="true" /> <!-- blind navigation (i.e. can't see other robot) -->
+    <arg name="blind" default="false" /> <!-- blind navigation (i.e. can't see other robot) -->
     <let name="nav2_params" value="$(var params_file)" />
     <group if="$(eval '\'$(var nav2_params)\' == \'\'')" scoped="false">
         <let if="$(var blind)" name="nav2_params" value="$(find-pkg-share tb3_nav_launch)/config/$(var model)_blind.yaml"/>
