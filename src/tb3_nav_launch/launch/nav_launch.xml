@@ -51,4 +51,14 @@
         <arg name="y" value="$(var init_y)" />
         <arg name="yaw" value="$(var init_yaw)" />
     </include>
+
+    <arg name="goal_pose" default="false" />
+    <arg name="goal_x" default="2.0" />
+    <arg name="goal_y" default="-0.5" />
+    <arg name="goal_yaw" default="0.0" />
+    <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/goal_launch.xml" if="$(var goal_pose)">
+        <arg name="x" value="$(var goal_x)" />
+        <arg name="y" value="$(var goal_y)" />
+        <arg name="yaw" value="$(var goal_yaw)" />
+    </include>
 </launch>
