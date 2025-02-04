@@ -41,4 +41,14 @@
         <arg name="max_cost" value="$(var random_max_cost)"/>
         <arg name="always" value="false"/>
     </include>
+
+    <arg name="init_pose" default="true" />
+    <arg name="init_x" default="-2.0" />
+    <arg name="init_y" default="-0.5" />
+    <arg name="init_yaw" default="0.0" />
+    <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/amcl_init_launch.xml" if="$(var init_pose)">
+        <arg name="x" value="$(var init_x)" />
+        <arg name="y" value="$(var init_y)" />
+        <arg name="yaw" value="$(var init_yaw)" />
+    </include>
 </launch>

@@ -16,3 +16,6 @@
 [submodule "src/nav2_random_goal"]
 	path = src/nav2_random_goal
 	url = https://github.com/itsmevjnk/nav2_random_goal.git
+[submodule "src/nav2_oneshot_nodes"]
+	path = src/nav2_oneshot_nodes
+	url = https://github.com/itsmevjnk/nav2_oneshot_nodes.git
