@@ -34,4 +34,13 @@
     </include>
 
     <include file="$(find-pkg-share nav2_cancel_stopper)/launch/stopper_launch.xml" />
+
+    <arg name="random" default="false" />
+    <arg name="random_max_cost" default="50"/>
+    <node pkg="nav2_random_goal" exec="goal_node" name="random_goal" if="$(var random)">
+        <remap from="goal_pose" to="/goal_pose"/>
+        <remap from="map" to="/global_costmap/costmap"/>
+        <remap from="goal_status" to="/navigate_to_pose/_action/status" />
+        <param name="sel_max" value="$(var random_max_cost)"/>
+    </node>
 </launch>
