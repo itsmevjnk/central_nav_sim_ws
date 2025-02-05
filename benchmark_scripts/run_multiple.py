@@ -27,5 +27,8 @@ if __name__ == '__main__':
         for i, central in enumerate(subruns):
             subrun_out = outdir + subrun_name[central]
             print(f'running {subrun_out} ({n + 1}/{NUM_RUNS})')
-            run_benchmark(NUM_ROBOTS, subrun_out, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, central, None if i == 0 else (outdir + subrun_name[subruns[i - 1]] + '/poses.yml'))
+            poses_file = None
+            if i > 0:
+                poses_file = outdir + subrun_name[subruns[i - 1]] + '/poses.yml'
+            run_benchmark(NUM_ROBOTS, subrun_out, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, central, poses_file)
         
