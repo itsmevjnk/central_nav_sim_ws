@@ -5,6 +5,7 @@ import random
 import time
 import signal
 from datetime import datetime
+import yaml
 import numpy as np
 
 class OutputCapturedPopen(subprocess.Popen):
@@ -120,7 +121,7 @@ class SimulatedRobots:
                     f'{self.log_dir}/{robot_name}_delete.stderr.log'
                 ).wait() # do it sequentially to avoid jamming up Gazebo
 
-def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance):
+def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, poses_file=None):
     LOG_DIR = output_dir + '/log'
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -191,21 +192,28 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
         f'{LOG_DIR}/telemetry.stderr.log'
     )
 
-    init_points = sample_points(num_robots, min_pt_distance) # initial points
+    if poses_file is None:
+        init_points = sample_points(num_robots, min_pt_distance) # initial points
 
-    # sample goal points
-    goal_points = []
-    min_nav_distance_sq = min_nav_distance ** 2
-    for i in range(num_robots):
-        while True:
-            point = sample_point(goal_points, min_pt_distance)
-            if distance_sq(point[0], point[1], init_points[i][0], init_points[i][1]) < min_nav_distance_sq: continue
-            goal_points.append(point)
-            break
-    
-    yaws = ((np.random.random(2 * num_robots) * 2 - 1) * np.pi).tolist()
+        # sample goal points
+        goal_points = []
+        min_nav_distance_sq = min_nav_distance ** 2
+        for i in range(num_robots):
+            while True:
+                point = sample_point(goal_points, min_pt_distance)
+                if distance_sq(point[0], point[1], init_points[i][0], init_points[i][1]) < min_nav_distance_sq: continue
+                goal_points.append(point)
+                break
+        
+        yaws = ((np.random.random(2 * num_robots) * 2 - 1) * np.pi).tolist()
+        poses = [((init_points[i][0], init_points[i][1], yaws[i*2+0]), (goal_points[i][0], goal_points[i][1], yaws[i*2+1])) for i in range(num_robots)]
+    else:
+        with open(poses, 'r') as f:
+            poses_file = yaml.safe_load(f)
 
-    poses = [((init_points[i][0], init_points[i][1], yaws[i*2+0]), (goal_points[i][0], goal_points[i][1], yaws[i*2+1])) for i in range(num_robots)]
+    with open(f'{OUTPUT_DIR}/poses.yml', 'w') as f:
+        yaml.safe_dump(poses, f)
+
     robots = SimulatedRobots(poses, log_dir=LOG_DIR, delete_entities=(gazebo is None)) # we don't need to delete entities if Gazebo is exited
 
     timer = OutputCapturedPopen(
@@ -234,5 +242,6 @@ if __name__ == '__main__':
     MIN_PT_DISTANCE = float(os.environ.get('MIN_PT_DISTANCE', '1.0')) # minimum distance between initial/goal points
     MIN_NAV_DISTANCE = float(os.environ.get('MIN_NAV_DISTANCE', '2.0')) # minimum distance between initial and goal points
     GZ_WORLD = os.environ.get('GZ_WORLD', '') # empty means no Gazebo launching
+    POSES = os.environ.get('POSES', None)
 
-    run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE)
+    run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, POSES)
