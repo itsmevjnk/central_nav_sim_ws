@@ -216,24 +216,30 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
 
     if poses_file is None:
         while True:
-            init_points = sample_points(num_robots, min_pt_distance) # initial points
-            if init_points is not None: break
+            while True:
+                init_points = sample_points(num_robots, min_pt_distance) # initial points
+                if init_points is not None: break
 
-        # sample goal points
-        min_nav_distance_sq = min_nav_distance ** 2
-        while True:
-            goal_points = []
-            for i in range(num_robots):
-                while True:
-                    point = sample_point(goal_points, min_pt_distance)
-                    if point is None:
+            # sample goal points
+            min_nav_distance_sq = min_nav_distance ** 2
+            for i in range(10):
+                goal_points = []
+                for j in range(num_robots):
+                    for k in range(10):
+                        point = sample_point(goal_points, min_pt_distance)
+                        if point is None:
+                            goal_points = None
+                            break
+                        if distance_sq(point[0], point[1], init_points[i][0], init_points[i][1]) < min_nav_distance_sq:
+                            point = None
+                            continue
+                        goal_points.append(point)
+                        break
+                    if goal_points is None or point is None:
                         goal_points = None
                         break
-                    if distance_sq(point[0], point[1], init_points[i][0], init_points[i][1]) < min_nav_distance_sq: continue
-                    goal_points.append(point)
-                    break
-                if goal_points is None: break
-            if goal_points is not None: break
+                if goal_points is not None: break
+            if goal_points is not None: break # otherwise, we re-randomise init_points too
         
         yaws = ((np.random.random(2 * num_robots) * 2 - 1) * np.pi).tolist()
         poses = [((init_points[i][0], init_points[i][1], yaws[i*2+0]), (goal_points[i][0], goal_points[i][1], yaws[i*2+1])) for i in range(num_robots)]
