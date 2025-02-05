@@ -140,7 +140,7 @@ class SimulatedRobots:
                     f'{self.log_dir}/{robot_name}_delete.stderr.log'
                 ).wait() # do it sequentially to avoid jamming up Gazebo
 
-def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file=None):
+def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file=None, launch_timeout=15):
     LOG_DIR = output_dir + '/log'
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -254,7 +254,7 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
 
     print(f'waiting until all robots start navigating')
     t_start = time.time()
-    while not robots.all_started_nav and time.time() - t_start < 15:
+    while not robots.all_started_nav and (launch_timeout <= 0 or time.time() - t_start < launch_timeout):
         time.sleep(0.5)
     if not robots.all_started_nav:
         print(f'robots are not starting, trying again')
@@ -264,7 +264,7 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
         del record_telemetry
         if gazebo is not None: del gazebo
         return run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file)
-    print(f'robots are now navigating')
+    print(f'robots are now navigating after {time.time() - t_start} sec')
 
     timer = OutputCapturedPopen(
         ['ros2', 'launch', 'benchmark_tools', 'timer_launch.xml', 'duration:=120.0'],
@@ -294,5 +294,6 @@ if __name__ == '__main__':
     CENTRAL = int(os.environ.get('CENTRAL', '1')) != 0
     POSES = os.environ.get('POSES', None)
     OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{NUM_ROBOTS}' + ('-nocentral' if not CENTRAL else ''))
+    LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '15'))
 
-    run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES)
+    run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, LAUNCH_TIMEOUT)

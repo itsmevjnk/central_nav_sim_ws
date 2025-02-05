@@ -11,6 +11,7 @@ if __name__ == '__main__':
     GZ_WORLD = os.environ.get('GZ_WORLD', 'world_8x') # empty means no Gazebo launching
     OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{GZ_WORLD}-{NUM_ROBOTS}rbt')
     NUM_RUNS = int(os.environ.get('NUM_RUNS', '100'))
+    LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '15'))
 
     CENTRAL = int(os.environ.get('CENTRAL', '1')) != 0
     DECENTRAL = int(os.environ.get('DECENTRAL', '1')) != 0
@@ -30,5 +31,5 @@ if __name__ == '__main__':
             poses_file = None
             if i > 0:
                 poses_file = outdir + subrun_name[subruns[i - 1]] + '/poses.yml'
-            run_benchmark(NUM_ROBOTS, subrun_out, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, central, poses_file)
+            run_benchmark(NUM_ROBOTS, subrun_out, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, central, poses_file, LAUNCH_TIMEOUT)
         
