@@ -156,18 +156,21 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
 
     def sample_point(points: list[tuple[float, float]] = [], min_dist: float = 0.0):
         min_dist_sq = min_dist ** 2
-        while True:
-            point = random.choice(in_points)
+        shuffled_points = in_points.copy(); random.shuffle(shuffled_points)
+        for point in shuffled_points:
             dist = float('inf')
             for p in points:
                 d = distance_sq(point[0], point[1], p[0], p[1])
                 if d < dist: dist = d
             if dist > min_dist_sq: return point
+        return None
     
     def sample_points(n: int, min_dist: float = 0.0):
         points = []
         for i in range(n):
-            points.append(sample_point(points, min_dist))
+            point = sample_point(points, min_dist)
+            if point is None: return None
+            points.append(point)
         return points
 
     if len(gz_world) > 0:
@@ -206,23 +209,31 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
     )
 
     record_telemetry = OutputCapturedPopen(
-        ['ros2', 'topic', 'echo', '/telemetry', 'std_msgs/msg/String', '--csv', '--field data'],
-        f'{LOG_DIR}/telemetry.stdout.log',
+        ['ros2', 'topic', 'echo', '--csv', '--field', 'data', '--no-daemon', '/telemetry', 'std_msgs/msg/String'],
+        f'{output_dir}/telemetry.log',
         f'{LOG_DIR}/telemetry.stderr.log'
     )
 
     if poses_file is None:
-        init_points = sample_points(num_robots, min_pt_distance) # initial points
+        while True:
+            init_points = sample_points(num_robots, min_pt_distance) # initial points
+            if init_points is not None: break
 
         # sample goal points
-        goal_points = []
         min_nav_distance_sq = min_nav_distance ** 2
-        for i in range(num_robots):
-            while True:
-                point = sample_point(goal_points, min_pt_distance)
-                if distance_sq(point[0], point[1], init_points[i][0], init_points[i][1]) < min_nav_distance_sq: continue
-                goal_points.append(point)
-                break
+        while True:
+            goal_points = []
+            for i in range(num_robots):
+                while True:
+                    point = sample_point(goal_points, min_pt_distance)
+                    if point is None:
+                        goal_points = None
+                        break
+                    if distance_sq(point[0], point[1], init_points[i][0], init_points[i][1]) < min_nav_distance_sq: continue
+                    goal_points.append(point)
+                    break
+                if goal_points is None: break
+            if goal_points is not None: break
         
         yaws = ((np.random.random(2 * num_robots) * 2 - 1) * np.pi).tolist()
         poses = [((init_points[i][0], init_points[i][1], yaws[i*2+0]), (goal_points[i][0], goal_points[i][1], yaws[i*2+1])) for i in range(num_robots)]
