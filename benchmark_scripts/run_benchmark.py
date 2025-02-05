@@ -68,7 +68,7 @@ class SimulatedRobots:
                 OutputCapturedPopen(
                     [
                         'ros2', 'launch', 'tb3_nav_launch', 'nav_launch.xml', 
-                        f'name:={robot_name}', f'domain:={this_domain}', 
+                        f'name:={robot_name}', f'domain:={this_domain}', 'rviz:=false',
                         'init_pose:=true', f'init_x:={init_x}', f'init_y:={init_y}', f'init_yaw:={init_yaw}',
                         'goal_pose:=true', f'goal_x:={goal_x}', f'goal_y:={goal_y}', f'goal_yaw:={goal_yaw}'
                     ],
@@ -166,8 +166,7 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
     central_nav = OutputCapturedPopen(
         [
             'ros2', 'launch', 'central_nav', 'central_launch.xml',
-            f'map:=src/tb3_nav_launch/map/world.yaml', # for visualisation only, can omit
-            'use_sim_time:=true'
+            'use_sim_time:=true', 'rviz:=false'
         ],
         f'{LOG_DIR}/central_nav.stdout.log',
         f'{LOG_DIR}/central_nav.stderr.log'
