@@ -21,7 +21,7 @@ class WaitUntilNavStart(Node):
         latest_status: GoalStatus = data.status_list[-1] # newest goal is last
         self.get_logger().info(f'latest goal status: {latest_status.status}')
 
-        if not self.navigating and (latest_status.status == 1 or latest_status.status == 2):
+        if latest_status.status == 1 or latest_status.status == 2:
             self.get_logger().info(f'navigation started, exiting')
             raise SystemExit
             
