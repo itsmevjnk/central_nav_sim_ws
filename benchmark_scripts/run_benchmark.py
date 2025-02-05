@@ -42,6 +42,10 @@ class OutputCapturedPopen(subprocess.Popen):
 
         self.wait() # wait until process has been terminated
         return super().__del__()
+    
+    @property
+    def exited(self):
+        return self.poll() is not None
 
 class SimulatedRobots:
     def __init__(self, poses: list[tuple[tuple[float, float, float], tuple[float, float, float]]], prefix: str = 'robot', start_domain: int = 10, log_dir: str = 'log', delete_entities: bool = True):
@@ -98,7 +102,7 @@ class SimulatedRobots:
     
     @property
     def finished_nav(self) -> dict[str, bool]:
-        return {robot_name: (self.processes[robot_name][-1].poll() is not None) for robot_name in self.processes}
+        return {robot_name: self.processes[robot_name][-1].exited for robot_name in self.processes}
     
     @property
     def all_finished_nav(self) -> bool:
@@ -212,8 +216,9 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
     )
 
     try:
-        while (not robots.all_finished_nav) and (timer.poll() is None):
-            print(f'robots finished: {robots.finished_nav} (all: {robots.all_finished_nav}), timer finished: {timer.poll() is not None}')
+        while True:
+            print(f'robots finished: {robots.finished_nav} (all: {robots.all_finished_nav}), timer finished: {timer.exited}')
+            if robots.all_finished_nav or timer.exited: break
             time.sleep(1)
     finally:
         print('cleaning up')
