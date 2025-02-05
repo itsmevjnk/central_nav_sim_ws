@@ -230,7 +230,7 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
                         if point is None:
                             goal_points = None
                             break
-                        if distance_sq(point[0], point[1], init_points[i][0], init_points[i][1]) < min_nav_distance_sq:
+                        if distance_sq(point[0], point[1], init_points[j][0], init_points[j][1]) < min_nav_distance_sq:
                             point = None
                             continue
                         goal_points.append(point)
