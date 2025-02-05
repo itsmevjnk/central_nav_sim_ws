@@ -4,9 +4,9 @@ from rclpy import qos
 
 from action_msgs.msg import GoalStatusArray, GoalStatus
 
-class WaitUntilNavComplete(Node):
+class WaitUntilNavStart(Node):
     def __init__(self):
-        super().__init__('wait_until_nav_complete')
+        super().__init__('wait_until_nav_start')
         
         latched_qos = qos.QoSProfile(
             reliability=qos.QoSReliabilityPolicy.RELIABLE,
@@ -14,8 +14,6 @@ class WaitUntilNavComplete(Node):
             durability=qos.QoSDurabilityPolicy.TRANSIENT_LOCAL
         ) # same as bt_navigator
         self.create_subscription(GoalStatusArray, 'goal_status', self.status_cb, latched_qos)
-
-        self.navigating: bool = False
         
     def status_cb(self, data: GoalStatusArray):
         if len(data.status_list) == 0: return # nothing to do
@@ -24,17 +22,12 @@ class WaitUntilNavComplete(Node):
         self.get_logger().info(f'latest goal status: {latest_status.status}')
 
         if not self.navigating and (latest_status.status == 1 or latest_status.status == 2):
-            self.get_logger().info(f'navigation started')
-            self.navigating = True
-            return
-
-        if self.navigating and latest_status.status == 4: # completed
-            self.get_logger().info(f'navigation completed, exiting')
+            self.get_logger().info(f'navigation started, exiting')
             raise SystemExit
             
 def main():
     rclpy.init()
-    node = WaitUntilNavComplete()
+    node = WaitUntilNavStart()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:

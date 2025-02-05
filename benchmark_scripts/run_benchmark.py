@@ -90,6 +90,13 @@ class SimulatedRobots:
                     del_sigkill=True
                 ),
                 OutputCapturedPopen(
+                    ['ros2', 'launch', 'benchmark_tools', 'nav_wait_start_launch.xml'],
+                    f'{log_dir}/{robot_name}_nav_wait_start.stdout.log',
+                    f'{log_dir}/{robot_name}_nav_wait_start.stderr.log',
+                    env=nav_env,
+                    del_sigkill=True
+                ),
+                OutputCapturedPopen(
                     ['ros2', 'launch', 'benchmark_tools', 'nav_wait_launch.xml'],
                     f'{log_dir}/{robot_name}_nav_wait.stdout.log',
                     f'{log_dir}/{robot_name}_nav_wait.stderr.log',
@@ -109,6 +116,16 @@ class SimulatedRobots:
     def all_finished_nav(self) -> bool:
         result = True
         for r in self.finished_nav.values(): result &= r # AND all results
+        return result
+    
+    @property
+    def started_nav(self) -> dict[str, bool]:
+        return {robot_name: self.processes[robot_name][-2].exited for robot_name in self.processes}
+    
+    @property
+    def all_started_nav(self) -> bool:
+        result = True
+        for r in self.started_nav.values(): result &= r # AND all results
         return result
 
     def __del__(self):
@@ -215,6 +232,10 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
         yaml.safe_dump(poses, f)
 
     robots = SimulatedRobots(poses, log_dir=LOG_DIR, delete_entities=(gazebo is None)) # we don't need to delete entities if Gazebo is exited
+
+    print(f'waiting until all robots start navigating')
+    while not robots.all_started_nav:
+        time.sleep(1)
 
     timer = OutputCapturedPopen(
         ['ros2', 'launch', 'benchmark_tools', 'timer_launch.xml', 'duration:=120.0'],
