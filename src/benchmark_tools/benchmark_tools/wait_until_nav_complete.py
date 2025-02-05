@@ -28,8 +28,8 @@ class WaitUntilNavComplete(Node):
             self.navigating = True
             return
 
-        if self.navigating and latest_status.status == 4: # completed
-            self.get_logger().info(f'navigation completed, exiting')
+        if self.navigating and (latest_status.status == 4 or latest_status.status == 6): # completed or aborted
+            self.get_logger().info(f'navigation {"completed" if latest_status.status == 4 else "aborted"}, exiting')
             raise SystemExit
             
 def main():
