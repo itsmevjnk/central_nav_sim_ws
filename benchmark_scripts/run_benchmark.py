@@ -116,16 +116,12 @@ class SimulatedRobots:
                     f'{self.log_dir}/{robot_name}_delete.stderr.log'
                 ).wait() # do it sequentially to avoid jamming up Gazebo
 
-if __name__ == '__main__':
-    NUM_ROBOTS = int(os.environ.get('NUM_ROBOTS', '2'))
-    
-    OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{NUM_ROBOTS}')
-    
-    LOG_DIR = OUTPUT_DIR + '/log'
+def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance):
+    LOG_DIR = output_dir + '/log'
     os.makedirs(LOG_DIR, exist_ok=True)
 
-    POINTS_FILE = os.environ.get('POINTS_FILE', f'{os.path.dirname(__file__)}/world_points.csv')
     in_points: list[tuple[float, float]] = []
+    POINTS_FILE = os.environ.get('POINTS_FILE', f'{os.path.dirname(__file__)}/world_points.csv')
     with open(POINTS_FILE, 'r', newline='') as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -133,9 +129,6 @@ if __name__ == '__main__':
     
     def distance_sq(x1, y1, x2, y2):
         return (x1-x2)**2 + (y1-y2)**2
-    
-    MIN_PT_DISTANCE = float(os.environ.get('MIN_PT_DISTANCE', '1.0')) # minimum distance between initial/goal points
-    MIN_NAV_DISTANCE = float(os.environ.get('MIN_NAV_DISTANCE', '2.0')) # minimum distance between initial and goal points
 
     def sample_point(points: list[tuple[float, float]] = [], min_dist: float = 0.0):
         min_dist_sq = min_dist ** 2
@@ -153,13 +146,12 @@ if __name__ == '__main__':
             points.append(sample_point(points, min_dist))
         return points
 
-    GZ_WORLD = os.environ.get('GZ_WORLD', '') # empty means no Gazebo launching
-    if len(GZ_WORLD) > 0:
+    if len(gz_world) > 0:
         print('killing old gzserver and gzclient instances')
         OutputCapturedPopen(['killall', '-SIGKILL', 'gzserver', 'gzclient']).wait()
         print('launching Gazebo')
         gazebo = OutputCapturedPopen(
-            ['ros2', 'launch', 'tb3_multi_launch', 'gazebo.launch.py', f'world:={GZ_WORLD}'],
+            ['ros2', 'launch', 'tb3_multi_launch', 'gazebo.launch.py', f'world:={gz_world}'],
             f'{LOG_DIR}/gazebo.stdout.log',
             f'{LOG_DIR}/gazebo.stderr.log'
         )
@@ -180,7 +172,7 @@ if __name__ == '__main__':
     record_bag = OutputCapturedPopen(
         [
             'ros2', 'bag', 'record',
-            '-o', f'{OUTPUT_DIR}/bag',
+            '-o', f'{output_dir}/bag',
             '/robot_poses', '/robot_paths', 
             '/robot_markers', '/path_markers', '/raw_path_markers', '/ix_markers',
             '/robot_pass', '/robot_stop',
@@ -196,21 +188,21 @@ if __name__ == '__main__':
         f'{LOG_DIR}/telemetry.stderr.log'
     )
 
-    init_points = sample_points(NUM_ROBOTS, MIN_PT_DISTANCE) # initial points
+    init_points = sample_points(num_robots, min_pt_distance) # initial points
 
     # sample goal points
     goal_points = []
-    MIN_NAV_DISTANCE_SQ = MIN_NAV_DISTANCE ** 2
-    for i in range(NUM_ROBOTS):
+    min_nav_distance_sq = min_nav_distance ** 2
+    for i in range(num_robots):
         while True:
-            point = sample_point(goal_points, MIN_PT_DISTANCE)
-            if distance_sq(point[0], point[1], init_points[i][0], init_points[i][1]) < MIN_NAV_DISTANCE_SQ: continue
+            point = sample_point(goal_points, min_pt_distance)
+            if distance_sq(point[0], point[1], init_points[i][0], init_points[i][1]) < min_nav_distance_sq: continue
             goal_points.append(point)
             break
     
-    yaws = ((np.random.random(2 * NUM_ROBOTS) * 2 - 1) * np.pi).tolist()
+    yaws = ((np.random.random(2 * num_robots) * 2 - 1) * np.pi).tolist()
 
-    poses = [((init_points[i][0], init_points[i][1], yaws[i*2+0]), (goal_points[i][0], goal_points[i][1], yaws[i*2+1])) for i in range(NUM_ROBOTS)]
+    poses = [((init_points[i][0], init_points[i][1], yaws[i*2+0]), (goal_points[i][0], goal_points[i][1], yaws[i*2+1])) for i in range(num_robots)]
     robots = SimulatedRobots(poses, log_dir=LOG_DIR, delete_entities=(gazebo is None)) # we don't need to delete entities if Gazebo is exited
 
     timer = OutputCapturedPopen(
@@ -231,3 +223,12 @@ if __name__ == '__main__':
         del timer
         del record_telemetry
         if gazebo is not None: del gazebo
+
+if __name__ == '__main__':
+    NUM_ROBOTS = int(os.environ.get('NUM_ROBOTS', '2'))
+    OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{NUM_ROBOTS}')
+    MIN_PT_DISTANCE = float(os.environ.get('MIN_PT_DISTANCE', '1.0')) # minimum distance between initial/goal points
+    MIN_NAV_DISTANCE = float(os.environ.get('MIN_NAV_DISTANCE', '2.0')) # minimum distance between initial and goal points
+    GZ_WORLD = os.environ.get('GZ_WORLD', '') # empty means no Gazebo launching
+
+    run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE)
