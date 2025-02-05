@@ -138,7 +138,7 @@ class SimulatedRobots:
                     f'{self.log_dir}/{robot_name}_delete.stderr.log'
                 ).wait() # do it sequentially to avoid jamming up Gazebo
 
-def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, poses_file=None):
+def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file=None):
     LOG_DIR = output_dir + '/log'
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -183,7 +183,7 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
 
     central_nav = OutputCapturedPopen(
         [
-            'ros2', 'launch', 'central_nav', 'central_launch.xml',
+            'ros2', 'launch', 'central_nav', ('central_launch.xml' if central else 'telemetry_launch.xml'), # only launch collision telemetry if centralised node is not launched
             'use_sim_time:=true', 'rviz:=false'
         ],
         f'{LOG_DIR}/central_nav.stdout.log',
@@ -259,10 +259,11 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
 
 if __name__ == '__main__':
     NUM_ROBOTS = int(os.environ.get('NUM_ROBOTS', '2'))
-    OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{NUM_ROBOTS}')
     MIN_PT_DISTANCE = float(os.environ.get('MIN_PT_DISTANCE', '1.0')) # minimum distance between initial/goal points
     MIN_NAV_DISTANCE = float(os.environ.get('MIN_NAV_DISTANCE', '2.0')) # minimum distance between initial and goal points
     GZ_WORLD = os.environ.get('GZ_WORLD', '') # empty means no Gazebo launching
+    CENTRAL = int(os.environ.get('CENTRAL', '1')) != 0
     POSES = os.environ.get('POSES', None)
+    OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{NUM_ROBOTS}' + ('-nocentral' if not CENTRAL else ''))
 
-    run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, POSES)
+    run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES)
