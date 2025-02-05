@@ -46,7 +46,6 @@ class OutputCapturedPopen(subprocess.Popen):
 class SimulatedRobots:
     def __init__(self, poses: list[tuple[tuple[float, float, float], tuple[float, float, float]]], prefix: str = 'robot', start_domain: int = 10, log_dir: str = 'log'):
         self.processes: dict[str, list[OutputCapturedPopen]] = dict()
-        os.makedirs('log', exist_ok=True)
 
         this_domain = os.environ.get('ROS_DOMAIN_ID', '0')
 
@@ -175,6 +174,12 @@ if __name__ == '__main__':
         f'{LOG_DIR}/bag_record.stderr.log'
     )
 
+    record_telemetry = OutputCapturedPopen(
+        ['ros2', 'topic', 'echo', '/telemetry', 'std_msgs/msg/String', '--csv', '--field data'],
+        f'{LOG_DIR}/telemetry.stdout.log',
+        f'{LOG_DIR}/telemetry.stderr.log'
+    )
+
     init_points = sample_points(NUM_ROBOTS, MIN_PT_DISTANCE) # initial points
 
     # sample goal points
@@ -190,7 +195,7 @@ if __name__ == '__main__':
     yaws = ((np.random.random(2 * NUM_ROBOTS) * 2 - 1) * np.pi).tolist()
 
     poses = [((init_points[i][0], init_points[i][1], yaws[i*2+0]), (goal_points[i][0], goal_points[i][1], yaws[i*2+1])) for i in range(NUM_ROBOTS)]
-    robots = SimulatedRobots(poses)
+    robots = SimulatedRobots(poses, log_dir=LOG_DIR)
 
     timer = OutputCapturedPopen(
         ['ros2', 'launch', 'benchmark_tools', 'timer_launch.xml', 'duration:=120.0'],
@@ -207,3 +212,4 @@ if __name__ == '__main__':
         del central_nav
         del record_bag
         del timer
+        del record_telemetry
