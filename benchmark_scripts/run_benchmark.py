@@ -267,7 +267,7 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
     print(f'robots are now navigating after {time.time() - t_start} sec')
 
     timer = OutputCapturedPopen(
-        ['ros2', 'launch', 'benchmark_tools', 'timer_launch.xml', 'duration:=120.0'],
+        ['ros2', 'launch', 'benchmark_tools', 'timer_launch.xml', 'duration:=120.0', 'use_sim_time:=true'],
         f'{LOG_DIR}/timer.stdout.log',
         f'{LOG_DIR}/timer.stderr.log'
     )
