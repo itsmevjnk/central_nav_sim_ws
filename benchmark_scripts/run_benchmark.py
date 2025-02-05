@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import subprocess
 import os
 import csv
@@ -225,10 +227,10 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
         yaws = ((np.random.random(2 * num_robots) * 2 - 1) * np.pi).tolist()
         poses = [((init_points[i][0], init_points[i][1], yaws[i*2+0]), (goal_points[i][0], goal_points[i][1], yaws[i*2+1])) for i in range(num_robots)]
     else:
-        with open(poses, 'r') as f:
-            poses_file = yaml.safe_load(f)
+        with open(poses_file, 'r') as f:
+            poses = yaml.safe_load(f)
 
-    with open(f'{OUTPUT_DIR}/poses.yml', 'w') as f:
+    with open(f'{output_dir}/poses.yml', 'w') as f:
         yaml.safe_dump(poses, f)
 
     robots = SimulatedRobots(poses, log_dir=LOG_DIR, delete_entities=(gazebo is None)) # we don't need to delete entities if Gazebo is exited
