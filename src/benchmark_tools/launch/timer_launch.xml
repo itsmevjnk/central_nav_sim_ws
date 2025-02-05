@@ -1,0 +1,9 @@
+<launch>
+    <arg name="use_sim_time" default="false" />
+    <arg name="duration" />
+
+    <node name="timer" pkg="benchmark_tools" exec="timer" output="screen">
+        <param name="use_sim_time" value="$(var use_sim_time)" />
+        <param name="duration" value="$(var duration)" />
+    </node>
+</launch>
