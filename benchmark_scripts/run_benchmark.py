@@ -253,8 +253,18 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
     robots = SimulatedRobots(poses, log_dir=LOG_DIR, delete_entities=(gazebo is None)) # we don't need to delete entities if Gazebo is exited
 
     print(f'waiting until all robots start navigating')
-    while not robots.all_started_nav:
-        time.sleep(1)
+    t_start = time.time()
+    while not robots.all_started_nav and time.time() - t_start < 15:
+        time.sleep(0.5)
+    if not robots.all_started_nav:
+        print(f'robots are not starting, trying again')
+        del robots
+        del central_nav
+        del record_bag
+        del record_telemetry
+        if gazebo is not None: del gazebo
+        return run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file)
+    print(f'robots are now navigating')
 
     timer = OutputCapturedPopen(
         ['ros2', 'launch', 'benchmark_tools', 'timer_launch.xml', 'duration:=120.0'],
@@ -266,7 +276,7 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
         while True:
             print(f'robots finished: {robots.finished_nav} (all: {robots.all_finished_nav}), timer finished: {timer.exited}')
             if robots.all_finished_nav or timer.exited: break
-            time.sleep(1)
+            time.sleep(0.5)
     finally:
         print('cleaning up')
         del robots
