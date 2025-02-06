@@ -141,7 +141,7 @@ class SimulatedRobots:
                     f'{self.log_dir}/{robot_name}_delete.stderr.log'
                 ).wait() # do it sequentially to avoid jamming up Gazebo
 
-def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file=None, launch_timeout=15):
+def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file=None, launch_timeout=15, gz_headless=False):
     LOG_DIR = output_dir + '/log'
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -179,7 +179,7 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
         OutputCapturedPopen(['killall', '-SIGKILL', 'gzserver', 'gzclient']).wait()
         print('launching Gazebo')
         gazebo = OutputCapturedPopen(
-            ['ros2', 'launch', 'tb3_multi_launch', 'gazebo.launch.py', f'world:={gz_world}'],
+            ['ros2', 'launch', 'tb3_multi_launch', 'gazebo.launch.py', f'world:={gz_world}', f'headless:={gz_headless}'],
             f'{LOG_DIR}/gazebo.stdout.log',
             f'{LOG_DIR}/gazebo.stderr.log'
         )
@@ -298,5 +298,6 @@ if __name__ == '__main__':
     POSES = os.environ.get('POSES', None)
     OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{NUM_ROBOTS}' + ('-nocentral' if not CENTRAL else ''))
     LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '15'))
+    GZ_HEADLESS = int(os.environ.get('GZ_HEADLESS', '1')) != 0
 
-    run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, LAUNCH_TIMEOUT)
+    run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, LAUNCH_TIMEOUT, GZ_HEADLESS)
