@@ -9,6 +9,7 @@ import signal
 from datetime import datetime
 import yaml
 import numpy as np
+import shutil
 
 class OutputCapturedPopen(subprocess.Popen):
     def __init__(self, cmd: list[str], stdout: str | None = None, stderr: str | None = None, env: dict[str, str] | None = None, append: bool = False, del_sigkill: bool = False):
@@ -195,10 +196,11 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
         f'{LOG_DIR}/central_nav.stderr.log'
     )
 
+    bag_dir = f'{output_dir}/bag'
     record_bag = OutputCapturedPopen(
         [
             'ros2', 'bag', 'record',
-            '-o', f'{output_dir}/bag',
+            '-o', bag_dir,
             '/robot_poses', '/robot_paths', 
             '/robot_markers', '/path_markers', '/raw_path_markers', '/ix_markers',
             '/robot_pass', '/robot_stop',
@@ -263,6 +265,7 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
         del record_bag
         del record_telemetry
         if gazebo is not None: del gazebo
+        shutil.rmtree(bag_dir)
         return run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file)
     print(f'robots are now navigating after {time.time() - t_start} sec')
 
