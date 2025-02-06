@@ -71,7 +71,7 @@ class SimulatedRobots:
                 OutputCapturedPopen(
                     [
                         'ros2', 'launch', 'tb3_nav_launch', 'nav_launch.xml', 
-                        f'name:={robot_name}', f'domain:={this_domain}', 'rviz:=false',
+                        f'name:={robot_name}', f'domain:={this_domain}', 'rviz:=false', 'use_sim_time:=true',
                         'init_pose:=true', f'init_x:={init_x}', f'init_y:={init_y}', f'init_yaw:={init_yaw}',
                         'goal_pose:=true', f'goal_x:={goal_x}', f'goal_y:={goal_y}', f'goal_yaw:={goal_yaw}'
                     ],
