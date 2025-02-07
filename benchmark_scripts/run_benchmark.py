@@ -64,7 +64,7 @@ class SimulatedRobots:
             nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain) # for nav2
             self.processes[robot_name] = [
                 OutputCapturedPopen(
-                    ['ros2', 'launch', 'tb3_multi_launch', 'spawn_robot.launch.py', f'domain:={domain}', f'namespace:={robot_name}', f'x_pose:={init_x}', f'y_pose:={init_y}', f'yaw_pose:={init_yaw}'],
+                    ['ros2', 'launch', 'tb3_multi_launch', 'spawn_robot.launch.py', 'model:=waffle_bm', f'domain:={domain}', f'namespace:={robot_name}', f'x_pose:={init_x}', f'y_pose:={init_y}', f'yaw_pose:={init_yaw}'],
                     f'{log_dir}/{robot_name}_spawn.stdout.log',
                     f'{log_dir}/{robot_name}_spawn.stderr.log',
                     del_sigkill=True
@@ -130,16 +130,34 @@ class SimulatedRobots:
         result = True
         for r in self.started_nav.values(): result &= r # AND all results
         return result
+    
+    @property
+    def spawn_exited(self) -> dict[str, bool]:
+        return {robot_name: self.processes[robot_name][0].exited for robot_name in self.processes}
 
+    @property
+    def all_spawn_exited(self) -> bool:
+        result = True
+        for r in self.spawn_exited.values(): result &= r # AND all results
+        return result
+    
     def __del__(self):
         if self.delete_entities:
-            for robot_name in self.processes:
-                print(f'deleting entity {robot_name}')
-                OutputCapturedPopen(
-                    ['ros2', 'service', 'call', '/delete_entity', 'gazebo_msgs/srv/DeleteEntity', f"name: '{robot_name}'"],
-                    f'{self.log_dir}/{robot_name}_delete.stdout.log',
-                    f'{self.log_dir}/{robot_name}_delete.stderr.log'
-                ).wait() # do it sequentially to avoid jamming up Gazebo
+            print(f'cleaning up simulation')
+            OutputCapturedPopen(
+                ['ros2', 'service', 'call', '/clean_simulation', 'std_srvs/srv/Empty'],
+                f'{self.log_dir}/cleanup.stdout.log',
+                f'{self.log_dir}/cleanup.stderr.log'
+            ).wait()
+
+            # safe exit
+            print(f'waiting for spawn_robot.launch.py to stop for up to 5 seconds')
+            t_start = time.time()
+            while time.time() - t_start < 5:
+                if self.all_spawn_exited:
+                    print(f'all spawn_robot.launch.py have stopped after {time.time() - t_start} sec')
+                    break
+                time.sleep(0.25)
 
 def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file=None, launch_timeout=15, gz_headless=False):
     LOG_DIR = output_dir + '/log'
