@@ -41,7 +41,7 @@ if __name__ == '__main__':
                 poses_file = None
                 if i > 0:
                     poses_file = outdir + subrun_name[subruns[i - 1]] + '/poses.yml'
-                run_benchmark(robots, NUM_ROBOTS, outdir, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, poses_file, LAUNCH_TIMEOUT)
+                run_benchmark(robots, NUM_ROBOTS, subrun_out, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, poses_file, LAUNCH_TIMEOUT)
     finally:
         del robots
         
