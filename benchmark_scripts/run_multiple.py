@@ -8,7 +8,7 @@ if __name__ == '__main__':
     NUM_ROBOTS = int(os.environ.get('NUM_ROBOTS', '2'))
     MIN_PT_DISTANCE = float(os.environ.get('MIN_PT_DISTANCE', '0.5')) # minimum distance between initial/goal points
     MIN_NAV_DISTANCE = float(os.environ.get('MIN_NAV_DISTANCE', '3.0')) # minimum distance between initial and goal points
-    GZ_WORLD = os.environ.get('GZ_WORLD', 'world_max') # empty means no Gazebo launching
+    GZ_WORLD = os.environ.get('GZ_WORLD', 'world_8x') # empty means no Gazebo launching
     OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{GZ_WORLD}-{NUM_ROBOTS}rbt')
     NUM_RUNS = int(os.environ.get('NUM_RUNS', '100'))
     LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '60'))
