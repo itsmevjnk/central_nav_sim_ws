@@ -85,7 +85,8 @@ class SimulatedRobots:
                     [
                         'ros2', 'launch', 'central_nav', 'robot_launch.xml',
                         f'name:={robot_name}', f'domain:={this_domain}',
-                        'use_sim_time:=true'
+                        'use_sim_time:=true',
+                        'init_goal:=true', f'init_goal_x:={goal_x}', f'init_goal_y:={goal_y}', f'init_goal_yaw:={goal_yaw}'
                     ],
                     f'{log_dir}/{robot_name}_central.stdout.log',
                     f'{log_dir}/{robot_name}_central.stderr.log',
