@@ -315,7 +315,7 @@ if __name__ == '__main__':
     CENTRAL = int(os.environ.get('CENTRAL', '1')) != 0
     POSES = os.environ.get('POSES', None)
     OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{NUM_ROBOTS}' + ('-nocentral' if not CENTRAL else ''))
-    LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '15'))
+    LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '60'))
     GZ_HEADLESS = int(os.environ.get('GZ_HEADLESS', '1')) != 0
 
     run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, LAUNCH_TIMEOUT, GZ_HEADLESS)

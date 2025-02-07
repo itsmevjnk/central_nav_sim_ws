@@ -46,21 +46,40 @@
     <arg name="init_x" default="-2.0" />
     <arg name="init_y" default="-0.5" />
     <arg name="init_yaw" default="0.0" />
-    <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/amcl_init_launch.xml" if="$(var init_pose)">
-        <arg name="x" value="$(var init_x)" />
-        <arg name="y" value="$(var init_y)" />
-        <arg name="yaw" value="$(var init_yaw)" />
-        <arg name="use_sim_time" value="$(var use_sim_time)" />
-    </include>
+
 
     <arg name="goal_pose" default="false" />
     <arg name="goal_x" default="2.0" />
     <arg name="goal_y" default="-0.5" />
     <arg name="goal_yaw" default="0.0" />
-    <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/goal_launch.xml" if="$(var goal_pose)">
-        <arg name="x" value="$(var goal_x)" />
-        <arg name="y" value="$(var goal_y)" />
-        <arg name="yaw" value="$(var goal_yaw)" />
+
+    <let name="init_and_goal" value="false" />
+    <group scoped="false" if="$(eval '\'$(var init_pose)\' and \'$(var goal_pose)\'')">
+        <let name="init_and_goal" value="true" />
+    </group>
+
+    <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/init_and_goal_launch.xml" if="$(var init_and_goal)">
+        <arg name="init_x" value="$(var init_x)" />
+        <arg name="init_y" value="$(var init_y)" />
+        <arg name="init_yaw" value="$(var init_yaw)" />
+        <arg name="goal_x" value="$(var goal_x)" />
+        <arg name="goal_y" value="$(var goal_y)" />
+        <arg name="goal_yaw" value="$(var goal_yaw)" />
         <arg name="use_sim_time" value="$(var use_sim_time)" />
     </include>
+
+    <group scoped="false" unless="$(var init_and_goal)">
+        <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/amcl_init_launch.xml" if="$(var init_pose)">
+            <arg name="x" value="$(var init_x)" />
+            <arg name="y" value="$(var init_y)" />
+            <arg name="yaw" value="$(var init_yaw)" />
+            <arg name="use_sim_time" value="$(var use_sim_time)" />
+        </include>
+        <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/goal_launch.xml" if="$(var goal_pose)">
+            <arg name="x" value="$(var goal_x)" />
+            <arg name="y" value="$(var goal_y)" />
+            <arg name="yaw" value="$(var goal_yaw)" />
+            <arg name="use_sim_time" value="$(var use_sim_time)" />
+        </include>
+    </group>
 </launch>
