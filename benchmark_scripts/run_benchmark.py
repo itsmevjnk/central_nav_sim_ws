@@ -10,13 +10,15 @@ from datetime import datetime
 import yaml
 import numpy as np
 import shutil
+import re
+from scipy.spatial.transform import Rotation
 
 class OutputCapturedPopen(subprocess.Popen):
     def __init__(self, cmd: list[str], stdout: str | None = None, stderr: str | None = None, env: dict[str, str] | None = None, append: bool = False, del_sigkill: bool = False):
         self.del_sigkill = del_sigkill
 
-        self.f_stdout = None if stdout is None else open(stdout, 'a' if append else 'w')
-        self.f_stderr = None if stderr is None else open(stderr, 'a' if append else 'w')
+        self.f_stdout = subprocess.DEVNULL if stdout is None else open(stdout, 'a' if append else 'w')
+        self.f_stderr = subprocess.DEVNULL if stderr is None else open(stderr, 'a' if append else 'w')
 
         super().__init__(cmd, stdout=self.f_stdout, stderr=self.f_stderr, env=env, preexec_fn=os.setsid)
     
@@ -25,6 +27,7 @@ class OutputCapturedPopen(subprocess.Popen):
         if self.f_stdout is not None: self.f_stdout.close()
 
     def terminate(self):
+        print(f'sending SIGTERM to PID {self.pid}')
         try:
             os.killpg(os.getpgid(self.pid), signal.SIGTERM)
         except ProcessLookupError:
@@ -32,6 +35,7 @@ class OutputCapturedPopen(subprocess.Popen):
         self.close_files()
 
     def kill(self):
+        print(f'sending SIGKILL to PID {self.pid}')
         try:
             os.killpg(os.getpgid(self.pid), signal.SIGKILL)
         except ProcessLookupError:
@@ -51,24 +55,143 @@ class OutputCapturedPopen(subprocess.Popen):
     def exited(self):
         return self.poll() is not None
 
-class SimulatedRobots:
-    def __init__(self, poses: list[tuple[tuple[float, float, float], tuple[float, float, float]]], prefix: str = 'robot', start_domain: int = 10, log_dir: str = 'log', delete_entities: bool = True):
-        self.processes: dict[str, list[OutputCapturedPopen]] = dict()
+class SimulatedRobotPool:
+    def __init__(self, poses: list[tuple[float, float, float]] = [], prefix: str = 'robot', start_domain: int = 10, log_dir: str = 'log', gz_world: str | None = None, gz_headless: bool = True):
+        self.processes: list[OutputCapturedPopen | None] = []
+        self.start_domain = start_domain
+        self.prefix = prefix
+        self.log_dir = log_dir
+        self.this_domain = os.environ.get('ROS_DOMAIN_ID', '0')
+
+        os.makedirs(log_dir, exist_ok=True)
+
+        if gz_world is not None:
+            print(f'killing all other gzserver/gzclient instances')
+            try:
+                subprocess.check_call(['killall', '-SIGKILL', 'gzserver', 'gzclient'])
+            except subprocess.CalledProcessError:
+                pass
+
+            self.gz_process = OutputCapturedPopen(
+                ['ros2', 'launch', 'tb3_multi_launch', 'gazebo.launch.py', f'world:={gz_world}', f'headless:={gz_headless}'],
+                f'{log_dir}/gazebo.stdout.log',
+                f'{log_dir}/gazebo.stderr.log'
+            )
+        else:
+            self.gz_process = None
+
+        for pose in poses:
+            self.add_robot(pose)
+
+    def has_index(self, idx: int) -> bool:
+        return idx < len(self.processes) and self.processes[idx] is not None
+    
+    def find_unused_idx(self) -> int:
+        for i, proc in self.processes:
+            if proc is None: return i
+        i = len(self.processes)
+        self.processes.append(None)
+        return i
+
+    def is_ready(self, idx: int) -> bool:
+        if not self.has_index(idx): return False
+        name = f'{self.prefix}{idx}'
+        try:
+            output = subprocess.check_output(['ros2', 'topic', 'info', f'/{name}/scan'], stderr=subprocess.DEVNULL).decode()
+        except subprocess.CalledProcessError: # topic's not up yet
+            return False
+        num_publishers = int(output.splitlines()[1].split(': ')[1]) 
+        if num_publishers == 0: # publisher count
+            return False
+        return True
+
+    def wait_ready(self, idx: int):
+        while not self.is_ready(idx):
+            time.sleep(0.25)
+
+    def add_robot(self, pose: tuple[float, float, float] = (0.0, 0.0, 0.0), idx: int | None = None, wait_ready: bool = False) -> tuple[int, str, int]:
+        if idx is None:
+            idx = self.find_unused_idx()
+        elif idx >= len(self.processes): # expand
+            self.processes.extend([None for i in range(idx - len(self.processes) + 1)])
+        elif self.processes[idx] is not None: # already exists - move robot
+            self.move_robot(idx, pose)
+            return (idx, f'{self.prefix}{idx}', self.start_domain + idx)
+
+        name = f'{self.prefix}{idx}'
+        domain = self.start_domain + idx
+        init_x, init_y, init_yaw = pose
+
+        print(f'adding robot {name} on domain {domain}')
+        self.processes[idx] = OutputCapturedPopen(
+            ['ros2', 'launch', 'tb3_multi_launch', 'spawn_robot.launch.py', 'model:=waffle_bm', f'domain:={domain}', f'namespace:={name}', f'x_pose:={init_x}', f'y_pose:={init_y}', f'yaw_pose:={init_yaw}'],
+            f'{self.log_dir}/{name}_spawn.stdout.log',
+            f'{self.log_dir}/{name}_spawn.stderr.log',
+            del_sigkill=True
+        )
+
+        if wait_ready:
+            self.wait_ready(idx)
+
+        return (idx, name, domain)
+    
+    def remove_robot(self, idx: int):
+        if not self.has_index(idx): return
+        name = f'{self.prefix}{idx}'
+        print(f'deleting robot {name}')
+        subprocess.check_call(['ros2', 'service', 'call', '/delete_entity', 'gazebo_msgs/srv/DeleteEntity', f'name: {name}'], stdout=subprocess.DEVNULL)
+        self.processes[idx] = None # will trigger SIGKILL
+    
+    def move_robot(self, idx: int, pose: tuple[float, float, float]):
+        if not self.has_index(idx): return
+
+        name = f'{self.prefix}{idx}'
+        x, y, yaw = pose
+        qx, qy, qz, qw = Rotation.from_euler('z', yaw).as_quat()
+        subprocess.check_call([
+            'ros2', 'service', 'call', '/gazebo/set_entity_state', 'gazebo_msgs/srv/SetEntityState',
+            f'state: {{name: \'{name}\', pose: {{position: {{x: {x}, y: {y}, z: 0.01}}, orientation: {{x: {qx}, y: {qy}, z: {qz}, w: {qw}}}}}, reference_frame: world}}'
+        ], stdout=subprocess.DEVNULL)
+
+    @property
+    def all_ready(self) -> bool:
+        result = True
+        for idx, proc in enumerate(self.processes):
+            if proc is None: continue
+            result &= self.is_ready(idx)
+        return result
+    
+    def wait_all_ready(self):
+        while not self.all_ready:
+            time.sleep(0.25)
+    
+    def __del__(self):
+        if self.gz_process is not None:
+            del self.gz_process
+            for proc in self.processes: del proc
+        else:
+            robots = len(self.processes)
+            for i in range(robots):
+                self.remove_robot(i)
+
+class RobotNavstacks:
+    def __init__(self, goals: list[tuple[float, float, float]], prefix: str = 'robot', start_domain: int = 10, log_dir: str = 'log'):
+        self.processes: list[list[OutputCapturedPopen]] = []
 
         this_domain = os.environ.get('ROS_DOMAIN_ID', '0')
 
-        for i, ((init_x, init_y, init_yaw), (goal_x, goal_y, goal_yaw)) in enumerate(poses):
-            domain = start_domain + i
+        for i, (goal_x, goal_y, goal_yaw) in enumerate(goals):
+            # get initial pose from Gazebo
             robot_name = f'{prefix}{i}'
-            print(f'starting {robot_name} on domain {domain}')
+            resp = subprocess.check_output(['ros2', 'service', 'call', '/gazebo/get_entity_state', 'gazebo_msgs/srv/GetEntityState', f'{{name: \'{robot_name}\', reference_frame: \'world\'}}']).decode().splitlines()[3]
+            match = re.search(r'geometry_msgs\.msg\.Point\(x=([\-0-9.e]*), y=([\-0-9.e]*), z=([\-0-9.e]*)\)', resp)
+            init_x = float(match.group(1)); init_y = float(match.group(2))
+            match = re.search(r'geometry_msgs\.msg\.Quaternion\(x=([\-0-9.e]*), y=([\-0-9.e]*), z=([\-0-9.e]*), w=([\-0-9.e]*)\)', resp)
+            _, _, init_yaw = Rotation.from_quat([float(match.group(i)) for i in range(1, 5)]).as_euler('xyz')
+
+            domain = start_domain + i
             nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain) # for nav2
-            self.processes[robot_name] = [
-                OutputCapturedPopen(
-                    ['ros2', 'launch', 'tb3_multi_launch', 'spawn_robot.launch.py', 'model:=waffle_bm', f'domain:={domain}', f'namespace:={robot_name}', f'x_pose:={init_x}', f'y_pose:={init_y}', f'yaw_pose:={init_yaw}'],
-                    f'{log_dir}/{robot_name}_spawn.stdout.log',
-                    f'{log_dir}/{robot_name}_spawn.stderr.log',
-                    del_sigkill=True
-                ),
+            self.processes.append([
                 OutputCapturedPopen(
                     [
                         'ros2', 'launch', 'tb3_nav_launch', 'nav_launch.xml', 
@@ -114,60 +237,34 @@ class SimulatedRobots:
                     env=nav_env,
                     del_sigkill=True
                 )
-            ]
-        
-        self.log_dir = log_dir
-        self.delete_entities = delete_entities
+            ])
     
     @property
-    def finished_nav(self) -> dict[str, bool]:
-        return {robot_name: self.processes[robot_name][-1].exited for robot_name in self.processes}
+    def finished(self) -> list[bool]:
+        return [proc[-1].exited for proc in self.processes]
     
     @property
-    def all_finished_nav(self) -> bool:
+    def all_finished(self) -> bool:
         result = True
-        for r in self.finished_nav.values(): result &= r # AND all results
+        for r in self.finished: result &= r # AND all results
         return result
     
     @property
-    def started_nav(self) -> dict[str, bool]:
-        return {robot_name: self.processes[robot_name][-2].exited for robot_name in self.processes}
+    def started(self) -> list[bool]:
+        return [proc[-2].exited for proc in self.processes]
     
     @property
-    def all_started_nav(self) -> bool:
+    def all_started(self) -> bool:
         result = True
-        for r in self.started_nav.values(): result &= r # AND all results
-        return result
-    
-    @property
-    def spawn_exited(self) -> dict[str, bool]:
-        return {robot_name: self.processes[robot_name][0].exited for robot_name in self.processes}
-
-    @property
-    def all_spawn_exited(self) -> bool:
-        result = True
-        for r in self.spawn_exited.values(): result &= r # AND all results
+        for r in self.started: result &= r # AND all results
         return result
     
     def __del__(self):
-        if self.delete_entities:
-            print(f'cleaning up simulation')
-            OutputCapturedPopen(
-                ['ros2', 'service', 'call', '/clean_simulation', 'std_srvs/srv/Empty'],
-                f'{self.log_dir}/cleanup.stdout.log',
-                f'{self.log_dir}/cleanup.stderr.log'
-            ).wait()
+        for robot in self.processes:
+            for proc in robot:
+                del proc # just to be explicit
 
-            # safe exit
-            print(f'waiting for spawn_robot.launch.py to stop for up to 5 seconds')
-            t_start = time.time()
-            while time.time() - t_start < 5:
-                if self.all_spawn_exited:
-                    print(f'all spawn_robot.launch.py have stopped after {time.time() - t_start} sec')
-                    break
-                time.sleep(0.25)
-
-def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file=None, launch_timeout=15, gz_headless=False):
+def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, min_pt_distance: float, min_nav_distance: float, central: bool, poses_file: str | None = None, launch_timeout: float = 15):
     LOG_DIR = output_dir + '/log'
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -200,27 +297,17 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
             points.append(point)
         return points
 
-    if len(gz_world) > 0:
-        print('killing old gzserver and gzclient instances')
-        OutputCapturedPopen(['killall', '-SIGKILL', 'gzserver', 'gzclient']).wait()
-        print('launching Gazebo')
-        gazebo = OutputCapturedPopen(
-            ['ros2', 'launch', 'tb3_multi_launch', 'gazebo.launch.py', f'world:={gz_world}', f'headless:={gz_headless}'],
-            f'{LOG_DIR}/gazebo.stdout.log',
-            f'{LOG_DIR}/gazebo.stderr.log'
+    if central:
+        central_nav = OutputCapturedPopen(
+            [
+                'ros2', 'launch', 'central_nav', 'central_launch.xml',
+                'use_sim_time:=true', 'rviz:=false'
+            ],
+            f'{LOG_DIR}/central_nav.stdout.log',
+            f'{LOG_DIR}/central_nav.stderr.log'
         )
-        # time.sleep(1) # give it some extra time
     else:
-        gazebo = None
-
-    central_nav = OutputCapturedPopen(
-        [
-            'ros2', 'launch', 'central_nav', ('central_launch.xml' if central else 'telemetry_launch.xml'), # only launch collision telemetry if centralised node is not launched
-            'use_sim_time:=true', 'rviz:=false'
-        ],
-        f'{LOG_DIR}/central_nav.stdout.log',
-        f'{LOG_DIR}/central_nav.stderr.log'
-    )
+        central_nav = None
 
     bag_dir = f'{output_dir}/bag'
     record_bag = OutputCapturedPopen(
@@ -230,6 +317,7 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
             '/robot_poses', '/robot_paths', 
             '/robot_markers', '/path_markers', '/raw_path_markers', '/ix_markers',
             '/robot_pass', '/robot_stop',
+            '/performance_metrics', # Gazebo performance
             '/clock', '/telemetry' # IMPORTANT!!!!!
         ],
         f'{LOG_DIR}/bag_record.stdout.log',
@@ -278,21 +366,25 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
     with open(f'{output_dir}/poses.yml', 'w') as f:
         yaml.safe_dump(poses, f)
 
-    robots = SimulatedRobots(poses, log_dir=LOG_DIR, delete_entities=(gazebo is None)) # we don't need to delete entities if Gazebo is exited
+    init_poses, goal_poses = list(zip(*poses))
+    for i, pose in enumerate(init_poses):
+        robots.add_robot(pose, i)
+    robots.wait_all_ready()
+
+    navstacks = RobotNavstacks(goal_poses, log_dir=LOG_DIR)
 
     print(f'waiting until all robots start navigating')
     t_start = time.time()
-    while not robots.all_started_nav and (launch_timeout <= 0 or time.time() - t_start < launch_timeout):
+    while not navstacks.all_started and (launch_timeout <= 0 or time.time() - t_start < launch_timeout):
         time.sleep(0.5)
-    if not robots.all_started_nav:
+    if not navstacks.all_started:
         print(f'robots are not starting, trying again')
-        del robots
-        del central_nav
+        del navstacks
         del record_bag
         del record_telemetry
-        if gazebo is not None: del gazebo
+        if central_nav is not None: del central_nav
         shutil.rmtree(bag_dir)
-        return run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_distance, central, poses_file)
+        return run_benchmark(robots, num_robots, output_dir, min_pt_distance, min_nav_distance, central, poses_file, launch_timeout)
     print(f'robots are now navigating after {time.time() - t_start} sec')
 
     timer = OutputCapturedPopen(
@@ -303,17 +395,16 @@ def run_benchmark(num_robots, output_dir, gz_world, min_pt_distance, min_nav_dis
 
     try:
         while True:
-            print(f'robots finished: {robots.finished_nav} (all: {robots.all_finished_nav}), timer finished: {timer.exited}')
-            if robots.all_finished_nav or timer.exited: break
+            print(f'robots finished: {navstacks.finished} (all: {navstacks.all_finished}), timer finished: {timer.exited}')
+            if navstacks.all_finished or timer.exited: break
             time.sleep(0.5)
     finally:
         print('cleaning up')
-        del robots
-        del central_nav
+        del navstacks
+        if central_nav is not None: del central_nav
         del record_bag
         del timer
         del record_telemetry
-        if gazebo is not None: del gazebo
 
 if __name__ == '__main__':
     NUM_ROBOTS = int(os.environ.get('NUM_ROBOTS', '2'))
@@ -326,4 +417,11 @@ if __name__ == '__main__':
     LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '60'))
     GZ_HEADLESS = int(os.environ.get('GZ_HEADLESS', '1')) != 0
 
-    run_benchmark(NUM_ROBOTS, OUTPUT_DIR, GZ_WORLD, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, LAUNCH_TIMEOUT, GZ_HEADLESS)
+    robots = SimulatedRobotPool(
+        gz_world=None if len(GZ_WORLD) == 0 else GZ_WORLD,
+        gz_headless=GZ_HEADLESS,
+        log_dir=f'{OUTPUT_DIR}/log'
+    )
+    run_benchmark(robots, NUM_ROBOTS, OUTPUT_DIR, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, LAUNCH_TIMEOUT)
+
+    del robots
