@@ -50,6 +50,7 @@
         <arg name="x" value="$(var init_x)" />
         <arg name="y" value="$(var init_y)" />
         <arg name="yaw" value="$(var init_yaw)" />
+        <arg name="use_sim_time" value="$(var use_sim_time)" />
     </include>
 
     <arg name="goal_pose" default="false" />
@@ -60,5 +61,6 @@
         <arg name="x" value="$(var goal_x)" />
         <arg name="y" value="$(var goal_y)" />
         <arg name="yaw" value="$(var goal_yaw)" />
+        <arg name="use_sim_time" value="$(var use_sim_time)" />
     </include>
 </launch>
