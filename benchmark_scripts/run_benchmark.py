@@ -230,6 +230,17 @@ class SimulatedRobotPool:
         # command nav2
         domain = self.start_domain + idx
         nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain)
+        qx, qy, qz, qw = Rotation.from_euler('y', goal[2]).as_quat()
+        subprocess.check_call(
+            [
+                'ros2', 'topic', 'pub', '--once', '/goal_pose_alt', 'geometry_msgs/msg/PoseStamped',
+                f'{{header: {{frame_id: map}}, pose: {{position: {{x: {goal[0]}, y: {goal[1]}}}, orientation: {{x: {qx}, x: {qy}, x: {qz}, x: {qw}}}}}}}'
+            ],
+            env=nav_env,
+            stdout=subprocess.DEVNULL
+        )
+
+        # command nav2
         subprocess.check_call(
             [
                 'ros2', 'launch', 'nav2_oneshot_nodes', 'init_and_goal_launch.xml', 'use_sim_time:=true',
@@ -247,9 +258,19 @@ class SimulatedRobotPool:
 
         init_x, init_y, init_yaw = self.get_pose(idx)
 
-        # command nav2
         domain = self.start_domain + idx
         nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain)
+        qx, qy, qz, qw = Rotation.from_euler('y', goal[2]).as_quat()
+        subprocess.check_call(
+            [
+                'ros2', 'topic', 'pub', '--once', '/goal_pose_alt', 'geometry_msgs/msg/PoseStamped',
+                f'{{header: {{frame_id: map}}, pose: {{position: {{x: {goal[0]}, y: {goal[1]}}}, orientation: {{x: {qx}, x: {qy}, x: {qz}, x: {qw}}}}}}}'
+            ],
+            env=nav_env,
+            stdout=subprocess.DEVNULL
+        )
+
+        # command nav2
         return subprocess.Popen(
             [
                 'ros2', 'launch', 'nav2_oneshot_nodes', 'init_and_goal_launch.xml', 'use_sim_time:=true',
