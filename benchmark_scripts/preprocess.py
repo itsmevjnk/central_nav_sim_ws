@@ -44,7 +44,8 @@ for session_path in glob('*/'):
         # gather individual robots' telemetry
         robots_tmp: dict[str, dict] = {
             f'robot{i}': {
-                'collided': False,
+                'collided_robot': False,
+                'collided_static': False,
                 'nav_status': 0, # latest nav2 status7
                 'nav_status_stamp': -1, # latest nav2 status timestamp
                 'nav_time': -1, # navigation time (except pause)
@@ -65,9 +66,9 @@ for session_path in glob('*/'):
         for (stamp, node, content) in telemetry:
             if node == 'central_nav' and content[0] == 'ix': continue # ignore intersection log
             robot = robots_tmp[content[0]]
-            if node == 'pose_telemetry': # collision detection
+            if node == 'bumper_telemetry': # collision detection
                 if robot['nav_start_stamp'] >= 0: # only care about collisions after the robot has started moving
-                    robot['collided'] |= (content[1] == 'True')
+                    robot['collided_static' if content[1] == 'static' else 'collided_robot'] |= (content[2] == 'True')
             elif node == 'state_telemetry': # nav2 state
                 status = int(content[-1])
                 if status < 4: # active
@@ -110,7 +111,7 @@ for session_path in glob('*/'):
             'num_robots': num_robots,
             'has_ix': has_ix,
             'successful_robots': len([r for r in robots_tmp.values() if r['success']]),
-            'collided_robots': len([r for r in robots_tmp.values() if r['collided']]),
+            'collided_robots': len([r for r in robots_tmp.values() if r['collided_robot'] or r['collided_static']]),
             'stopped_robots': len([r for r in robots_tmp.values() if r['cmd_stopped']]),
             'avg_nav_time': np.mean([robots_tmp[robot]['nav_time_total'] for robot in robots_tmp if robots_tmp[robot]['success']])
         })
@@ -121,7 +122,8 @@ for session_path in glob('*/'):
                 'run': run_stamp,
                 'central': central,
                 'robot': robot,
-                'collided': robots_tmp[robot]['collided'],
+                'collided_robot': robots_tmp[robot]['collided_robot'],
+                'collided_static': robots_tmp[robot]['collided_static'],
                 'nav_time': robots_tmp[robot]['nav_time'],
                 'nav_time_total': robots_tmp[robot]['nav_time_total'],
                 'cmdvel_time': robots_tmp[robot]['cmdvel_time'],

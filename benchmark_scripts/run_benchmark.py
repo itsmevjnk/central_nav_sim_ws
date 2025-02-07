@@ -94,6 +94,13 @@ class SimulatedRobots:
                     del_sigkill=True
                 ),
                 OutputCapturedPopen(
+                    ['ros2', 'launch', 'benchmark_tools', 'bumper_launch.xml', f'name:={robot_name}'],
+                    f'{log_dir}/{robot_name}_bumper.stdout.log',
+                    f'{log_dir}/{robot_name}_bumper.stderr.log',
+                    env=nav_env,
+                    del_sigkill=True
+                ),
+                OutputCapturedPopen(
                     ['ros2', 'launch', 'benchmark_tools', 'nav_wait_start_launch.xml'],
                     f'{log_dir}/{robot_name}_nav_wait_start.stdout.log',
                     f'{log_dir}/{robot_name}_nav_wait_start.stderr.log',

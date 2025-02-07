@@ -26,7 +26,8 @@ setup(
         'console_scripts': [
             'timer = benchmark_tools.timer:main',
             'wait_until_nav_complete = benchmark_tools.wait_until_nav_complete:main',
-            'wait_until_nav_start = benchmark_tools.wait_until_nav_start:main'
+            'wait_until_nav_start = benchmark_tools.wait_until_nav_start:main',
+            'bumper_node = benchmark_tools.bumper_node:main'
         ],
     },
 )
