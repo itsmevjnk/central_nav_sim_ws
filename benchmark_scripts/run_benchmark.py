@@ -56,11 +56,12 @@ class OutputCapturedPopen(subprocess.Popen):
         return self.poll() is not None
 
 class SimulatedRobotPool:
-    def __init__(self, poses: list[tuple[float, float, float]] = [], prefix: str = 'robot', start_domain: int = 10, log_dir: str = 'log', gz_world: str | None = None, gz_headless: bool = True):
+    def __init__(self, poses: list[tuple[float, float, float]] = [], prefix: str = 'robot', start_domain: int = 10, log_dir: str = 'log', gz_world: str | None = None, gz_headless: bool = True, rviz: bool = False):
         self.processes: list[list[OutputCapturedPopen] | None] = []
         self.start_domain = start_domain
         self.prefix = prefix
         self.log_dir = log_dir
+        self.rviz = rviz
         self.this_domain = os.environ.get('ROS_DOMAIN_ID', '0')
 
         os.makedirs(log_dir, exist_ok=True)
@@ -136,7 +137,7 @@ class SimulatedRobotPool:
             OutputCapturedPopen(
                 [
                     'ros2', 'launch', 'tb3_nav_launch', 'nav_launch.xml', 
-                    f'name:={name}', f'domain:={self.this_domain}', 'rviz:=false', 'use_sim_time:=true',
+                    f'name:={name}', f'domain:={self.this_domain}', f'rviz:={self.rviz}', 'use_sim_time:=true',
                     'init_pose:=false'
                 ],
                 f'{self.log_dir}/{name}_nav.stdout.log',
@@ -227,7 +228,6 @@ class SimulatedRobotPool:
 
         init_x, init_y, init_yaw = self.get_pose(idx)
 
-        # command nav2
         domain = self.start_domain + idx
         nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain)
         qx, qy, qz, qw = Rotation.from_euler('y', goal[2]).as_quat()
@@ -465,7 +465,7 @@ def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, 
             procs_finished = [proc.exited for proc in navigate_procs]
             procs_all_finished = True
             for proc in procs_finished: procs_all_finished &= proc
-            print(f'robots finished: {procs_finished} (all: {procs_all_finished}), timer finished: {timer.exited}')
+            print(f'{time.time()}: robots finished: {procs_finished} (all: {procs_all_finished}), timer finished: {timer.exited}')
             if procs_all_finished or timer.exited: break
             time.sleep(0.5)
     finally:
@@ -500,11 +500,13 @@ if __name__ == '__main__':
     OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{NUM_ROBOTS}' + ('-nocentral' if not CENTRAL else ''))
     LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '60'))
     GZ_HEADLESS = int(os.environ.get('GZ_HEADLESS', '1')) != 0
+    RVIZ = int(os.environ.get('RVIZ', '0')) != 0
 
     robots = SimulatedRobotPool(
         gz_world=None if len(GZ_WORLD) == 0 else GZ_WORLD,
         gz_headless=GZ_HEADLESS,
-        log_dir=f'{OUTPUT_DIR}/log'
+        log_dir=f'{OUTPUT_DIR}/log',
+        rviz=RVIZ
     )
     run_benchmark(robots, NUM_ROBOTS, OUTPUT_DIR, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, LAUNCH_TIMEOUT)
 

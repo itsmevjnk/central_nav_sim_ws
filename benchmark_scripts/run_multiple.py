@@ -13,7 +13,8 @@ if __name__ == '__main__':
     NUM_RUNS = int(os.environ.get('NUM_RUNS', '100'))
     LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '60'))
     GZ_HEADLESS = int(os.environ.get('GZ_HEADLESS', '1')) != 0
-
+    RVIZ = int(os.environ.get('RVIZ', '0')) != 0
+    
     CENTRAL = int(os.environ.get('CENTRAL', '1')) != 0
     DECENTRAL = int(os.environ.get('DECENTRAL', '1')) != 0
     subruns = [] # True = centralised, False = decentralised
@@ -28,7 +29,8 @@ if __name__ == '__main__':
         robots = SimulatedRobotPool(
             gz_world=None if len(GZ_WORLD) == 0 else GZ_WORLD,
             gz_headless=GZ_HEADLESS,
-            log_dir=f'{OUTPUT_DIR}/log'
+            log_dir=f'{OUTPUT_DIR}/log',
+            rviz=RVIZ
         )
         
         for n in range(NUM_RUNS):
