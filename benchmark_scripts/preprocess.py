@@ -15,7 +15,7 @@ for session_path in glob('*/'):
     num_robots = int(num_robots.removesuffix('rbt'))
     print(f'processing session {SESSION}')
     run_robots = []
-    for run_path in glob(f'{SESSION}/*/'):
+    for run_path in glob(f'{SESSION}/*central/'):
         RUN = run_path.split('/')[1]
         run_stamp, central = RUN.split('-')
         central = (central == 'central')
