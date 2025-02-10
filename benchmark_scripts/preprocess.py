@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from glob import glob
+import os
 
 from typing import NamedTuple
 class TelemetryLine(NamedTuple):
@@ -20,6 +21,20 @@ for session_path in glob('*/'):
         run_stamp, central = RUN.split('-')
         central = (central == 'central')
         print(f' - processing run {RUN}: run stamp {run_stamp} with {num_robots} robots, centralised node running: {central}')
+
+        # check for central node crash
+        if central:
+            with open(f'{run_path}/log/central_nav.stdout.log', 'rb') as f:
+                try:
+                    f.seek(-2, os.SEEK_END)
+                    while f.read(1) != b'\n':
+                        f.seek(-2, os.SEEK_CUR)
+                except OSError:
+                    f.seek(0)
+                last_line: str = f.readline().decode()
+                if last_line.startswith('[ERROR]'):
+                    print(f'   central node crashed, ignoring')
+                    continue
 
         # read telemetry log
         telemetry: list[TelemetryLine] = []
@@ -112,6 +127,8 @@ for session_path in glob('*/'):
             'has_ix': has_ix,
             'successful_robots': len([r for r in robots_tmp.values() if r['success']]),
             'collided_robots': len([r for r in robots_tmp.values() if r['collided_robot'] or r['collided_static']]),
+            'robot_collided_robots': len([r for r in robots_tmp.values() if r['collided_robot']]),
+            'static_collided_robots': len([r for r in robots_tmp.values() if r['collided_static']]),
             'stopped_robots': len([r for r in robots_tmp.values() if r['cmd_stopped']]),
             'avg_nav_time': np.mean([robots_tmp[robot]['nav_time_total'] for robot in robots_tmp if robots_tmp[robot]['success']])
         })
