@@ -48,7 +48,7 @@ class OutputCapturedPopen(subprocess.Popen):
         else:
             self.terminate() # SIGTERM
 
-        self.wait() # wait until process has been terminated
+        self.wait(5.0) # wait until process has been terminated
         return super().__del__()
     
     @property
