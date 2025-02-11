@@ -10,7 +10,7 @@ class TelemetryLine(NamedTuple):
     content: list[str]
 
 runs = []
-for session_path in glob('*/'):
+for session_path in glob('*rbt/'):
     SESSION = session_path.removesuffix('/')
     session_stamp, _, num_robots = SESSION.split('-')
     num_robots = int(num_robots.removesuffix('rbt'))
@@ -90,7 +90,7 @@ for session_path in glob('*/'):
                     if robot['nav_start_stamp'] < 0:
                         robot['nav_start_stamp'] = stamp # navigation start
                 else: # not active
-                    if robot['nav_status_stamp'] >= 0:
+                    if robot['nav_start_stamp'] >= 0:
                         if robot['nav_time'] < 0: robot['nav_time'] = 0
                         robot['nav_time'] += stamp - robot['nav_status_stamp'] # one more navigation section
                         if status == 4: # success
@@ -117,8 +117,17 @@ for session_path in glob('*/'):
                 robot['moving'] = moving; robot['moving_stamp'] = stamp
         # for robot in robots_tmp:
         #     print(f'{robot}: {robots_tmp[robot]}')
+        
+        # fix NaN nav_time_total
+        first_stamp = telemetry[0].timestamp
+        last_stamp = telemetry[-1].timestamp
+        for robot in robots_tmp.values():
+            if robot['nav_time_total'] <= 0:
+                t_start = first_stamp if robot['nav_start_stamp'] <= 0 else robot['nav_start_stamp']
+                robot['nav_time_total'] = last_stamp - t_start
 
         # add to lists
+        nav_times = [robots_tmp[robot]['nav_time_total'] for robot in robots_tmp if robots_tmp[robot]['success']]
         runs.append({
             'session': SESSION,
             'run': run_stamp,
@@ -130,7 +139,11 @@ for session_path in glob('*/'):
             'robot_collided_robots': len([r for r in robots_tmp.values() if r['collided_robot']]),
             'static_collided_robots': len([r for r in robots_tmp.values() if r['collided_static']]),
             'stopped_robots': len([r for r in robots_tmp.values() if r['cmd_stopped']]),
-            'avg_nav_time': np.mean([robots_tmp[robot]['nav_time_total'] for robot in robots_tmp if robots_tmp[robot]['success']])
+            'aborted_robots': len([r for r in robots_tmp.values() if r['nav_failed']]),
+            'avg_nav_time': np.mean(nav_times) if len(nav_times) > 0 else np.nan,
+            'med_nav_time': np.median(nav_times) if len(nav_times) > 0 else np.nan,
+            'min_nav_time': np.min(nav_times) if len(nav_times) > 0 else np.nan,
+            'max_nav_time': np.max(nav_times) if len(nav_times) > 0 else np.nan
         })
 
         run_robots.extend([
