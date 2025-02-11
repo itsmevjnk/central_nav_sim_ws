@@ -96,15 +96,7 @@ class SimulatedRobotPool:
 
     def is_ready(self, idx: int) -> bool:
         if not self.has_index(idx): return False
-        name = f'{self.prefix}{idx}'
-        try:
-            output = subprocess.check_output(['ros2', 'topic', 'info', f'/{name}/scan'], stderr=subprocess.DEVNULL).decode()
-        except subprocess.CalledProcessError: # topic's not up yet
-            return False
-        num_publishers = int(output.splitlines()[1].split(': ')[1]) 
-        if num_publishers == 0: # publisher count
-            return False
-        return True
+        return self.processes[idx][-1].poll() is not None # ready when AMCL init exits
 
     def wait_ready(self, idx: int):
         while not self.is_ready(idx):
@@ -117,6 +109,8 @@ class SimulatedRobotPool:
             self.processes.extend([None for i in range(idx - len(self.processes) + 1)])
         elif self.processes[idx] is not None: # already exists - move robot
             self.move_robot(idx, pose)
+            if wait_ready:
+                self.wait_ready(idx)
             return (idx, f'{self.prefix}{idx}', self.start_domain + idx)
 
         name = f'{self.prefix}{idx}'
@@ -133,7 +127,21 @@ class SimulatedRobotPool:
                 f'{self.log_dir}/{name}_spawn.stderr.log',
                 del_sigkill=True
             ),
+        ]
 
+        while True:
+            time.sleep(0.25)
+            try:
+                output = subprocess.check_output(['ros2', 'topic', 'info', f'/scan'], env=nav_env, stderr=subprocess.DEVNULL).decode()
+            except subprocess.CalledProcessError: # topic's not up yet
+                continue
+            num_publishers = int(output.splitlines()[1].split(': ')[1]) 
+            if num_publishers == 0: # publisher count
+                continue
+            break
+        print(f' - robot is now on domain {domain}, starting Nav2')
+
+        self.processes[idx].extend([
             OutputCapturedPopen(
                 [
                     'ros2', 'launch', 'tb3_nav_launch', 'nav_launch.xml', 
@@ -164,7 +172,17 @@ class SimulatedRobotPool:
                 env=nav_env,
                 del_sigkill=True
             ),
-        ]       
+            OutputCapturedPopen(
+                [
+                    'ros2', 'launch', 'nav2_oneshot_nodes', 'amcl_init_launch.xml', 'use_sim_time:=true',
+                    f'x:={init_x}', f'y:={init_y}', f'yaw:={init_yaw}'
+                ],
+                f'{self.log_dir}/{name}_amcl_init.stdout.log',
+                f'{self.log_dir}/{name}_amcl_init.stderr.log',
+                env=nav_env,
+                del_sigkill=True
+            )
+        ])   
 
         if wait_ready:
             self.wait_ready(idx)
@@ -188,6 +206,15 @@ class SimulatedRobotPool:
             'ros2', 'service', 'call', '/gazebo/set_entity_state', 'gazebo_msgs/srv/SetEntityState',
             f'state: {{name: \'{name}\', pose: {{position: {{x: {x}, y: {y}, z: 0.01}}, orientation: {{x: {qx}, y: {qy}, z: {qz}, w: {qw}}}}}, reference_frame: world}}'
         ], stdout=subprocess.DEVNULL)
+        nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(self.start_domain + idx)
+        self.processes[idx][-1] = OutputCapturedPopen(
+            [
+                'ros2', 'launch', 'nav2_oneshot_nodes', 'amcl_init_launch.xml', 'use_sim_time:=true',
+                f'x:={x}', f'y:={y}', f'yaw:={yaw}'
+            ],
+            env=nav_env,
+            del_sigkill=True
+        )
 
     @property
     def all_ready(self) -> bool:
@@ -226,7 +253,7 @@ class SimulatedRobotPool:
     def navigate(self, idx: int, goal: tuple[float, float, float], f_stdout=None, f_stderr=None):
         if not self.has_index(idx): return
 
-        init_x, init_y, init_yaw = self.get_pose(idx)
+        # init_x, init_y, init_yaw = self.get_pose(idx)
 
         domain = self.start_domain + idx
         nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain)
@@ -243,9 +270,8 @@ class SimulatedRobotPool:
         # command nav2
         subprocess.check_call(
             [
-                'ros2', 'launch', 'nav2_oneshot_nodes', 'init_and_goal_launch.xml', 'use_sim_time:=true',
-                f'init_x:={init_x}', f'init_y:={init_y}', f'init_yaw:={init_yaw}',
-                f'goal_x:={goal[0]}', f'goal_y:={goal[1]}', f'goal_yaw:={goal[2]}'
+                'ros2', 'launch', 'nav2_oneshot_nodes', 'goal_launch.xml', 'use_sim_time:=true',
+                f'x:={goal[0]}', f'y:={goal[1]}', f'yaw:={goal[2]}'
             ],
             env=nav_env,
             stdout=f_stdout,
@@ -256,7 +282,7 @@ class SimulatedRobotPool:
     def navigate_async(self, idx: int, goal: tuple[float, float, float], f_stdout=None, f_stderr=None) -> subprocess.Popen | None:
         if not self.has_index(idx): return None
 
-        init_x, init_y, init_yaw = self.get_pose(idx)
+        # init_x, init_y, init_yaw = self.get_pose(idx)
 
         domain = self.start_domain + idx
         nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain)
@@ -273,9 +299,8 @@ class SimulatedRobotPool:
         # command nav2
         return subprocess.Popen(
             [
-                'ros2', 'launch', 'nav2_oneshot_nodes', 'init_and_goal_launch.xml', 'use_sim_time:=true',
-                f'init_x:={init_x}', f'init_y:={init_y}', f'init_yaw:={init_yaw}',
-                f'goal_x:={goal[0]}', f'goal_y:={goal[1]}', f'goal_yaw:={goal[2]}'
+                'ros2', 'launch', 'nav2_oneshot_nodes', 'goal_launch.xml', 'use_sim_time:=true',
+                f'x:={goal[0]}', f'y:={goal[1]}', f'yaw:={goal[2]}'
             ],
             env=nav_env,
             stdout=f_stdout,
