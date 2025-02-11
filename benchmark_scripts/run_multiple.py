@@ -33,6 +33,7 @@ if __name__ == '__main__':
             log_dir=f'{OUTPUT_DIR}/log',
             rviz=RVIZ
         )
+        first_run = True
         
         for n in range(NUM_RUNS):
             outdir = OUTPUT_DIR + '/' + datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -42,7 +43,8 @@ if __name__ == '__main__':
                 poses_file = None
                 if i > 0:
                     poses_file = outdir + subrun_name[subruns[i - 1]] + '/poses.yml'
-                run_benchmark(robots, NUM_ROBOTS, subrun_out, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, poses_file, LAUNCH_TIMEOUT, SIM_TIMEOUT)
+                run_benchmark(robots, NUM_ROBOTS, subrun_out, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, poses_file, not first_run, LAUNCH_TIMEOUT, SIM_TIMEOUT)
+                first_run = False
     finally:
         del robots
         

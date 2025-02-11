@@ -334,7 +334,7 @@ class SimulatedRobotPool:
         )
 
 
-def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, min_pt_distance: float, min_nav_distance: float, central: bool, poses_file: str | None = None, launch_timeout: float = 15, sim_timeout: float = 120):
+def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, min_pt_distance: float, min_nav_distance: float, central: bool, poses_file: str | None = None, pause_phys: bool = False, launch_timeout: float = 15, sim_timeout: float = 120):
     LOG_DIR = output_dir + '/log'
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -437,8 +437,10 @@ def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, 
         yaml.safe_dump(poses, f)
 
     init_poses, goal_poses = list(zip(*poses))
+    if pause_phys: subprocess.check_call(['ros2', 'service', 'call', '/pause_physics', 'std_srvs/srv/Empty'], stdout=subprocess.DEVNULL)
     for i, pose in enumerate(init_poses):
         robots.add_robot(pose, i)
+    if pause_phys: subprocess.check_call(['ros2', 'service', 'call', '/unpause_physics', 'std_srvs/srv/Empty'], stdout=subprocess.DEVNULL)
     robots.wait_all_ready()
 
     navigate_procs = [
@@ -534,6 +536,6 @@ if __name__ == '__main__':
         log_dir=f'{OUTPUT_DIR}/log',
         rviz=RVIZ
     )
-    run_benchmark(robots, NUM_ROBOTS, OUTPUT_DIR, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, LAUNCH_TIMEOUT, SIM_TIMEOUT)
+    run_benchmark(robots, NUM_ROBOTS, OUTPUT_DIR, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, False, LAUNCH_TIMEOUT, SIM_TIMEOUT)
 
     del robots
