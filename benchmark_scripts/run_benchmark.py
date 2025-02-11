@@ -492,7 +492,7 @@ def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, 
             procs_finished = [proc.exited for proc in navigate_procs]
             procs_all_finished = True
             for proc in procs_finished: procs_all_finished &= proc
-            print(f'{time.time()}: robots finished: {procs_finished} (all: {procs_all_finished}), timer finished: {timer.exited}')
+            print(f'{time.time()}: {len([p for p in procs_finished if p])}/{num_robots} robots finished, timer finished: {timer.exited}')
             if procs_all_finished or timer.exited: break
             time.sleep(0.5)
     finally:
