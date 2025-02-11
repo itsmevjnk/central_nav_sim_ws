@@ -14,6 +14,7 @@ if __name__ == '__main__':
     LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '60'))
     GZ_HEADLESS = int(os.environ.get('GZ_HEADLESS', '1')) != 0
     RVIZ = int(os.environ.get('RVIZ', '0')) != 0
+    SIM_TIMEOUT = int(os.environ.get('SIM_TIMEOUT', str(120 + (NUM_ROBOTS - 2) * 30)))
     
     CENTRAL = int(os.environ.get('CENTRAL', '1')) != 0
     DECENTRAL = int(os.environ.get('DECENTRAL', '1')) != 0
@@ -41,7 +42,7 @@ if __name__ == '__main__':
                 poses_file = None
                 if i > 0:
                     poses_file = outdir + subrun_name[subruns[i - 1]] + '/poses.yml'
-                run_benchmark(robots, NUM_ROBOTS, subrun_out, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, poses_file, LAUNCH_TIMEOUT)
+                run_benchmark(robots, NUM_ROBOTS, subrun_out, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, poses_file, LAUNCH_TIMEOUT, SIM_TIMEOUT)
     finally:
         del robots
         

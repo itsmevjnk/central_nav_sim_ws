@@ -309,7 +309,7 @@ class SimulatedRobotPool:
         )
 
 
-def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, min_pt_distance: float, min_nav_distance: float, central: bool, poses_file: str | None = None, launch_timeout: float = 15):
+def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, min_pt_distance: float, min_nav_distance: float, central: bool, poses_file: str | None = None, launch_timeout: float = 15, sim_timeout: float = 120):
     LOG_DIR = output_dir + '/log'
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -455,7 +455,7 @@ def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, 
         ))
 
     timer = OutputCapturedPopen(
-        ['ros2', 'launch', 'benchmark_tools', 'timer_launch.xml', 'duration:=120.0', 'use_sim_time:=true'],
+        ['ros2', 'launch', 'benchmark_tools', 'timer_launch.xml', f'duration:={sim_timeout:.1f}', 'use_sim_time:=true'],
         f'{LOG_DIR}/timer.stdout.log',
         f'{LOG_DIR}/timer.stderr.log'
     )
@@ -499,6 +499,7 @@ if __name__ == '__main__':
     POSES = os.environ.get('POSES', None)
     OUTPUT_DIR = os.environ.get('OUTPUT_DIR', os.getcwd() + '/' + datetime.now().strftime('%Y%m%d_%H%M%S') + f'-{NUM_ROBOTS}' + ('-nocentral' if not CENTRAL else ''))
     LAUNCH_TIMEOUT = int(os.environ.get('LAUNCH_TIMEOUT', '60'))
+    SIM_TIMEOUT = int(os.environ.get('SIM_TIMEOUT', str(120 + (NUM_ROBOTS - 2) * 30)))
     GZ_HEADLESS = int(os.environ.get('GZ_HEADLESS', '1')) != 0
     RVIZ = int(os.environ.get('RVIZ', '0')) != 0
 
@@ -508,6 +509,6 @@ if __name__ == '__main__':
         log_dir=f'{OUTPUT_DIR}/log',
         rviz=RVIZ
     )
-    run_benchmark(robots, NUM_ROBOTS, OUTPUT_DIR, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, LAUNCH_TIMEOUT)
+    run_benchmark(robots, NUM_ROBOTS, OUTPUT_DIR, MIN_PT_DISTANCE, MIN_NAV_DISTANCE, CENTRAL, POSES, LAUNCH_TIMEOUT, SIM_TIMEOUT)
 
     del robots
