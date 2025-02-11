@@ -23,8 +23,8 @@ class OutputCapturedPopen(subprocess.Popen):
         super().__init__(cmd, stdout=self.f_stdout, stderr=self.f_stderr, env=env, preexec_fn=os.setsid)
     
     def close_files(self):
-        if self.f_stderr is not None: self.f_stderr.close()
-        if self.f_stdout is not None: self.f_stdout.close()
+        if self.f_stderr is not None and type(self.f_stderr) is not int: self.f_stderr.close()
+        if self.f_stdout is not None and type(self.f_stderr) is not int: self.f_stdout.close()
 
     def terminate(self):
         print(f'sending SIGTERM to PID {self.pid}')
