@@ -519,7 +519,7 @@ def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, 
 
 if __name__ == '__main__':
     NUM_ROBOTS = int(os.environ.get('NUM_ROBOTS', '2'))
-    MIN_PT_DISTANCE = float(os.environ.get('MIN_PT_DISTANCE', '0.5')) # minimum distance between initial/goal points
+    MIN_PT_DISTANCE = float(os.environ.get('MIN_PT_DISTANCE', '1.0')) # minimum distance between initial/goal points
     MIN_NAV_DISTANCE = float(os.environ.get('MIN_NAV_DISTANCE', '3.0')) # minimum distance between initial and goal points
     GZ_WORLD = os.environ.get('GZ_WORLD', '') # empty means no Gazebo launching
     CENTRAL = int(os.environ.get('CENTRAL', '1')) != 0
