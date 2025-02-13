@@ -9,6 +9,7 @@ class TelemetryLine(NamedTuple):
     node: str
     content: list[str]
 
+skipped_runs = []
 runs = []
 for session_path in glob('*rbt/'):
     SESSION = session_path.removesuffix('/')
@@ -34,6 +35,7 @@ for session_path in glob('*rbt/'):
                 last_line: str = f.readline().decode()
                 if last_line.startswith('[ERROR]'):
                     print(f'   central node crashed, ignoring')
+                    skipped_runs.append(run_path)
                     continue
 
         # read telemetry log
@@ -59,8 +61,8 @@ for session_path in glob('*rbt/'):
         # gather individual robots' telemetry
         robots_tmp: dict[str, dict] = {
             f'robot{i}': {
-                'collided_robot': False,
-                'collided_static': False,
+                'robot_collisions': 0,
+                'static_collisions': 0,
                 'nav_status': 0, # latest nav2 status7
                 'nav_status_stamp': -1, # latest nav2 status timestamp
                 'nav_time': -1, # navigation time (except pause)
@@ -78,12 +80,18 @@ for session_path in glob('*rbt/'):
             }
             for i in range(num_robots)
         }
+        # skip = False
         for (stamp, node, content) in telemetry:
             if node == 'central_nav' and content[0] == 'ix': continue # ignore intersection log
+            if content[0] not in robots_tmp:
+                print(f'   WARNING: unknown robot {content[0]} found in telemetry! ({node})')
+                # skip = True; break
+                continue
             robot = robots_tmp[content[0]]
             if node == 'bumper_telemetry': # collision detection
                 if robot['nav_start_stamp'] >= 0: # only care about collisions after the robot has started moving
-                    robot['collided_static' if content[1] == 'static' else 'collided_robot'] |= (content[2] == 'True')
+                    if content[2] == 'True':
+                        robot['static_collisions' if content[1] == 'static' else 'robot_collisions'] += 1
             elif node == 'state_telemetry': # nav2 state
                 status = int(content[-1])
                 if status < 4: # active
@@ -117,6 +125,7 @@ for session_path in glob('*rbt/'):
                 robot['moving'] = moving; robot['moving_stamp'] = stamp
         # for robot in robots_tmp:
         #     print(f'{robot}: {robots_tmp[robot]}')
+        # if skip: continue
         
         # fix NaN nav_time_total
         first_stamp = telemetry[0].timestamp
@@ -135,9 +144,11 @@ for session_path in glob('*rbt/'):
             'num_robots': num_robots,
             'has_ix': has_ix,
             'successful_robots': len([r for r in robots_tmp.values() if r['success']]),
-            'collided_robots': len([r for r in robots_tmp.values() if r['collided_robot'] or r['collided_static']]),
-            'robot_collided_robots': len([r for r in robots_tmp.values() if r['collided_robot']]),
-            'static_collided_robots': len([r for r in robots_tmp.values() if r['collided_static']]),
+            'collided_robots': len([r for r in robots_tmp.values() if r['static_collisions'] > 0 or r['robot_collisions'] > 0]),
+            'robot_collisions': sum([r['robot_collisions'] for r in robots_tmp.values()]),
+            'static_collisions': sum([r['static_collisions'] for r in robots_tmp.values()]),
+            'robot_collided_robots': len([r for r in robots_tmp.values() if r['robot_collisions'] > 0]),
+            'static_collided_robots': len([r for r in robots_tmp.values() if r['static_collisions'] > 0]),
             'stopped_robots': len([r for r in robots_tmp.values() if r['cmd_stopped']]),
             'aborted_robots': len([r for r in robots_tmp.values() if r['nav_failed']]),
             'avg_nav_time': np.mean(nav_times) if len(nav_times) > 0 else np.nan,
@@ -152,8 +163,8 @@ for session_path in glob('*rbt/'):
                 'run': run_stamp,
                 'central': central,
                 'robot': robot,
-                'collided_robot': robots_tmp[robot]['collided_robot'],
-                'collided_static': robots_tmp[robot]['collided_static'],
+                'robot_collisions': robots_tmp[robot]['robot_collisions'],
+                'static_collisions': robots_tmp[robot]['static_collisions'],
                 'nav_time': robots_tmp[robot]['nav_time'],
                 'nav_time_total': robots_tmp[robot]['nav_time_total'],
                 'cmdvel_time': robots_tmp[robot]['cmdvel_time'],
@@ -166,3 +177,7 @@ for session_path in glob('*rbt/'):
 
 pd.DataFrame(runs).to_csv('runs.csv', index=False)
 
+if len(skipped_runs) > 0:
+    print(f'these runs have been skipped:')
+    for run in skipped_runs:
+        print(f' - {run}')
