@@ -34,4 +34,7 @@ COPY benchmark_scripts/run_benchmark.py /scripts/run_benchmark.py
 COPY benchmark_scripts/run_multiple.py /scripts/run_multiple.py
 COPY benchmark_scripts/world_points.csv /scripts/world_points.csv
 COPY benchmark_scripts/docker_launch.sh /scripts/docker_launch.sh
+
+RUN mkdir -p /out
+WORKDIR /out
 CMD ["/scripts/docker_launch.sh"]
