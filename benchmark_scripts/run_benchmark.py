@@ -384,10 +384,11 @@ def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, 
         [
             'ros2', 'bag', 'record',
             '-o', bag_dir,
+            '--compression-mode', 'file', '--compression-format', 'zstd',
+            '--use-sim-time',
             '/robot_poses', '/robot_paths', 
             '/robot_markers', '/path_markers', '/raw_path_markers', '/ix_markers',
             '/robot_pass', '/robot_stop',
-            '/performance_metrics', # Gazebo performance
             '/clock', '/telemetry' # IMPORTANT!!!!!
         ],
         f'{LOG_DIR}/bag_record.stdout.log',
