@@ -389,7 +389,7 @@ def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, 
             '/robot_poses', '/robot_paths', 
             '/robot_markers', '/path_markers', '/raw_path_markers', '/ix_markers',
             '/robot_pass', '/robot_stop',
-            '/clock', '/telemetry' # IMPORTANT!!!!!
+            '/telemetry' # IMPORTANT!!!!!
         ],
         f'{LOG_DIR}/bag_record.stdout.log',
         f'{LOG_DIR}/bag_record.stderr.log'
