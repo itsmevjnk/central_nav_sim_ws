@@ -2,7 +2,9 @@
 FROM ros:humble-ros-base-jammy AS dds
 SHELL ["/bin/bash", "-c"]
 
-RUN apt-get update -y && apt-get install -y ros-humble-rmw-cyclonedds-cpp
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends ros-humble-rmw-cyclonedds-cpp \
+    && rm -rf /var/lib/apt/lists/*
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
 # our stuff
@@ -16,7 +18,8 @@ COPY src /cnav_ws/src
 WORKDIR /cnav_ws
 RUN source /opt/ros/humble/setup.bash \
     && apt-get update -y \
-    && rosdep install --from-paths src --ignore-src --rosdistro humble -y
+    && rosdep install --from-paths src --ignore-src --rosdistro humble --skip-keys "rviz2" -y \
+    && rm -rf /var/lib/apt/lists/*
 
 # build workspace
 RUN source /opt/ros/humble/setup.bash \
