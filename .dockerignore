@@ -1,0 +1,9 @@
+build/
+install/
+log/
+.vscode/
+.git*
+benchmark_scripts/__pycache__/
+benchmark_scripts/*_*-*-*rbt/
+benchmark_scripts/*_robots.csv
+benchmark_scripts/runs.csv
