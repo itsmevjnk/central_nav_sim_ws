@@ -7,6 +7,9 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 
+# should be fine if launched with --net=host and host is also set to use docker0 for CycloneDDS
+ENV CYCLONEDDS_URI='<CycloneDDS><Domain><General><Interfaces><NetworkInterface name="docker0"></NetworkInterface></Interfaces></General></Domain></CycloneDDS>'
+
 # our stuff
 FROM dds AS overlay
 
