@@ -7,10 +7,8 @@ cleanup() {
     echo "Fully cleaning up simulation."
     ros2 service call /clean_simulation std_srvs/srv/Empty
 
-    if [[ -z "${EXIT_BENCHMARK}" ]]; then
-        echo "Benchmark completed, keeping terminal open to allow results to be copied."
-        tail -f /dev/null
-    fi
+    echo "Output directory listing:"
+    ls -l
 }
 trap cleanup EXIT
 
