@@ -64,7 +64,9 @@ for session_path in glob('*rbt/'):
         robots_tmp: dict[str, dict] = {
             f'robot{i}': {
                 'robot_collisions': 0,
+                'robot_collision_end_stamp': -1,
                 'static_collisions': 0,
+                'static_collision_end_stamp': -1,
                 'nav_status': 0, # latest nav2 status7
                 'nav_status_stamp': -1, # latest nav2 status timestamp
                 'nav_time': -1, # navigation time (except pause)
@@ -93,7 +95,12 @@ for session_path in glob('*rbt/'):
             if node == 'bumper_telemetry': # collision detection
                 if robot['nav_start_stamp'] >= 0: # only care about collisions after the robot has started moving
                     if content[2] == 'True':
-                        robot['static_collisions' if content[1] == 'static' else 'robot_collisions'] += 1
+                        end_stamp = robot[f'{content[1]}_collision_end_stamp']
+                        if end_stamp >= 0 and stamp - end_stamp > 1.0: # disregard subsequent transient collisions
+                            robot[f'{content[1]}_collisions'] += 1
+                    else:
+                        robot[f'{content[1]}_collision_end_stamp'] = stamp
+
             elif node == 'state_telemetry': # nav2 state
                 status = int(content[-1])
                 if status < 4: # active
@@ -175,7 +182,7 @@ for session_path in glob('*rbt/'):
                 'cmd_stopped': robots_tmp[robot]['cmd_stopped'],
             } for robot in robots_tmp
         ])
-    pd.DataFrame(run_robots).infer_objects(copy=False).replace(-1, np.nan).to_csv(f'{SESSION}_robots.csv', index=False)
+    pd.DataFrame(run_robots).replace(-1, np.nan).to_csv(f'{SESSION}_robots.csv', index=False)
 
 pd.DataFrame(runs).to_csv('runs.csv', index=False)
 
