@@ -10,9 +10,9 @@
     <arg name="params_file" default="" /> <!-- if specified will override blind -->
 
     <arg name="rviz" default="true" />
-    <node name="rviz" pkg="rviz2" exec="rviz2" args="-d $(find-pkg-share tb3_nav_launch)/rviz/navigation.rviz" if="$(var rviz)" output="screen">
-        <param name="use_sim_time" value="$(var use_sim_time)" />
-    </node>
+    <include file="$(find-pkg-share tb3_nav_launch)/launch/rviz_launch.xml" if="$(var rviz)">
+        <arg name="use_sim_time" value="$(var use_sim_time)" />
+    </include>
 
     <arg name="blind" default="false" /> <!-- blind navigation (i.e. can't see other robot) -->
     <let name="nav2_params" value="$(var params_file)" />

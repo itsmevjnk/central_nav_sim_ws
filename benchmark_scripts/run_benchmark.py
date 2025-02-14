@@ -14,8 +14,9 @@ import re
 from scipy.spatial.transform import Rotation
 
 class OutputCapturedPopen(subprocess.Popen):
-    def __init__(self, cmd: list[str], stdout: str | None = None, stderr: str | None = None, env: dict[str, str] | None = None, append: bool = False, del_sigkill: bool = False):
+    def __init__(self, cmd: list[str], stdout: str | None = None, stderr: str | None = None, env: dict[str, str] | None = None, append: bool = False, del_sigkill: bool = False, del_timeout: float | None = 5.0):
         self.del_sigkill = del_sigkill
+        self.del_timeout = del_timeout
 
         self.f_stdout = subprocess.DEVNULL if stdout is None else open(stdout, 'a' if append else 'w')
         self.f_stderr = subprocess.DEVNULL if stderr is None else open(stderr, 'a' if append else 'w')
@@ -48,7 +49,11 @@ class OutputCapturedPopen(subprocess.Popen):
         else:
             self.terminate() # SIGTERM
 
-        self.wait(5.0) # wait until process has been terminated
+        if self.del_timeout is None or self.del_timeout > 0:
+            try:
+                self.wait(self.del_timeout) # wait until process has been terminated
+            except subprocess.TimeoutExpired:
+                print(f' - timed out waiting for process to exit (timeout: {self.del_timeout} s)')
         return super().__del__()
     
     @property
@@ -171,6 +176,24 @@ class SimulatedRobotPool:
                 f'{self.log_dir}/{name}_bumper.stderr.log',
                 env=nav_env,
                 del_sigkill=True
+            ),
+            OutputCapturedPopen(
+                [
+                    'ros2', 'bag', 'record',
+                    '-o', f'{self.log_dir}/../{name}_bag', # fixme
+                    '--compression-mode', 'file', '--compression-format', 'zstd',
+                    '--use-sim-time',
+                    '/map', '/map_updates',
+                    '/global_costmap/costmap', '/global_costmap/costmap_updates',
+                    '/local_costmap/costmap', '/local_costmap/costmap_updates',
+                    '/scan',
+                    '/plan',
+                    '/tf', '/tf_static', '/robot_description'
+                ],
+                f'{self.log_dir}/{name}_bag.stdout.log',
+                f'{self.log_dir}/{name}_bag.stderr.log',
+                env=nav_env,
+                del_timeout=0
             ),
             OutputCapturedPopen(
                 [
