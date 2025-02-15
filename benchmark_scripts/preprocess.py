@@ -14,12 +14,14 @@ class TelemetryLine(NamedTuple):
 skipped_runs = []
 runs = []
 for session_path in glob('*rbt/'):
+    session_path = session_path.replace('\\', '/')
     SESSION = session_path.removesuffix('/')
     session_stamp, _, num_robots = SESSION.split('-')
     num_robots = int(num_robots.removesuffix('rbt'))
     print(f'processing session {SESSION}')
     run_robots = []
     for run_path in glob(f'{SESSION}/*central/'):
+        run_path = run_path.replace('\\', '/')
         RUN = run_path.split('/')[1]
         run_stamp, central = RUN.split('-')
         central = (central == 'central')
