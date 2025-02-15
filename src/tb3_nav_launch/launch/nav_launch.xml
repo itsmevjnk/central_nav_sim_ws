@@ -7,6 +7,8 @@
     <arg name="model" default="waffle" />
     <arg name="map" default="$(find-pkg-share tb3_nav_launch)/map/world.yaml" />
 
+    <arg name="localisation" default="true" />
+
     <arg name="params_file" default="" /> <!-- if specified will override blind -->
 
     <arg name="rviz" default="true" />
@@ -21,7 +23,13 @@
         <let unless="$(var blind)" name="nav2_params" value="$(find-pkg-share tb3_nav_launch)/config/$(var model).yaml"/>
     </group>
 
-    <include file="$(find-pkg-share nav2_bringup)/launch/bringup_launch.py">
+    <include file="$(find-pkg-share nav2_bringup)/launch/bringup_launch.py" if="$(var localisation)">
+        <arg name="use_sim_time" value="$(var use_sim_time)" />
+        <arg name="map" value="$(var map)" />
+        <arg name="params_file" value="$(var nav2_params)" />
+    </include>
+
+    <include file="$(find-pkg-share tb3_nav_launch)/launch/map_navigation_launch.py" unless="$(var localisation)">
         <arg name="use_sim_time" value="$(var use_sim_time)" />
         <arg name="map" value="$(var map)" />
         <arg name="params_file" value="$(var nav2_params)" />
@@ -43,6 +51,12 @@
     </include>
 
     <arg name="init_pose" default="true" />
+
+    <let name="init_pose_option" value="$(var init_pose)" />
+    <group scoped="false" unless="$(var localisation)">
+        <let name="init_pose_option" value="false" /> <!-- no initial pose can be set if AMCL isn't running -->
+    </group>
+
     <arg name="init_x" default="-2.0" />
     <arg name="init_y" default="-0.5" />
     <arg name="init_yaw" default="0.0" />
@@ -54,7 +68,7 @@
     <arg name="goal_yaw" default="0.0" />
 
     <let name="init_and_goal" value="false" />
-    <group scoped="false" if="$(eval '\'$(var init_pose)\' and \'$(var goal_pose)\'')">
+    <group scoped="false" if="$(eval '\'$(var init_pose_option)\' and \'$(var goal_pose)\'')">
         <let name="init_and_goal" value="true" />
     </group>
 
@@ -69,7 +83,7 @@
     </include>
 
     <group scoped="false" unless="$(var init_and_goal)">
-        <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/amcl_init_launch.xml" if="$(var init_pose)">
+        <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/amcl_init_launch.xml" if="$(var init_pose_option)">
             <arg name="x" value="$(var init_x)" />
             <arg name="y" value="$(var init_y)" />
             <arg name="yaw" value="$(var init_yaw)" />
