@@ -127,7 +127,12 @@ class SimulatedRobotPool:
         print(f'adding robot {name} on domain {domain}')
         self.processes[idx] = [
             OutputCapturedPopen(
-                ['ros2', 'launch', 'tb3_multi_launch', 'spawn_robot.launch.py', 'model:=waffle_bm', f'domain:={domain}', f'namespace:={name}', f'x_pose:={init_x}', f'y_pose:={init_y}', f'yaw_pose:={init_yaw}'],
+                [
+                    'ros2', 'launch', 'tb3_multi_launch', 'spawn_robot.launch.py',
+                    'model:=waffle_bm', f'domain:={domain}', f'namespace:={name}',
+                    f'x_pose:={init_x}', f'y_pose:={init_y}', f'yaw_pose:={init_yaw}',
+                    'publish_map_tf:=true'
+                ],
                 f'{self.log_dir}/{name}_spawn.stdout.log',
                 f'{self.log_dir}/{name}_spawn.stderr.log',
                 del_sigkill=True
@@ -151,7 +156,7 @@ class SimulatedRobotPool:
                 [
                     'ros2', 'launch', 'tb3_nav_launch', 'nav_launch.xml', 
                     f'name:={name}', f'domain:={self.this_domain}', f'rviz:={self.rviz}', 'use_sim_time:=true',
-                    'init_pose:=false'
+                    'init_pose:=false', 'localisation:=false'
                 ],
                 f'{self.log_dir}/{name}_nav.stdout.log',
                 f'{self.log_dir}/{name}_nav.stderr.log',
@@ -197,7 +202,7 @@ class SimulatedRobotPool:
             # ),
             OutputCapturedPopen(
                 [
-                    'ros2', 'launch', 'nav2_oneshot_nodes', 'amcl_init_launch.xml', 'use_sim_time:=true',
+                    'ros2', 'launch', 'nav2_oneshot_nodes', 'wait_until_ready_launch.xml', 'node:=bt_navigator',
                     f'x:={init_x}', f'y:={init_y}', f'yaw:={init_yaw}'
                 ],
                 f'{self.log_dir}/{name}_amcl_init.stdout.log',
@@ -231,10 +236,7 @@ class SimulatedRobotPool:
         ], stdout=subprocess.DEVNULL)
         nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(self.start_domain + idx)
         self.processes[idx][-1] = OutputCapturedPopen(
-            [
-                'ros2', 'launch', 'nav2_oneshot_nodes', 'amcl_init_launch.xml', 'use_sim_time:=true',
-                f'x:={x}', f'y:={y}', f'yaw:={yaw}'
-            ],
+            ['ros2', 'launch', 'nav2_oneshot_nodes', 'clear_costmaps_launch.xml'],
             env=nav_env,
             del_sigkill=True
         )
