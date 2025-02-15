@@ -51,26 +51,16 @@
     </include>
 
     <arg name="init_pose" default="true" />
-
-    <let name="init_pose_option" value="$(var init_pose)" />
-    <group scoped="false" unless="$(var localisation)">
-        <let name="init_pose_option" value="false" /> <!-- no initial pose can be set if AMCL isn't running -->
-    </group>
-
     <arg name="init_x" default="-2.0" />
     <arg name="init_y" default="-0.5" />
     <arg name="init_yaw" default="0.0" />
-
 
     <arg name="goal_pose" default="false" />
     <arg name="goal_x" default="2.0" />
     <arg name="goal_y" default="-0.5" />
     <arg name="goal_yaw" default="0.0" />
 
-    <let name="init_and_goal" value="false" />
-    <group scoped="false" if="$(eval '\'$(var init_pose_option)\' and \'$(var goal_pose)\'')">
-        <let name="init_and_goal" value="true" />
-    </group>
+    <arg name="init_and_goal" default="false" />
 
     <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/init_and_goal_launch.xml" if="$(var init_and_goal)">
         <arg name="init_x" value="$(var init_x)" />
@@ -83,7 +73,7 @@
     </include>
 
     <group scoped="false" unless="$(var init_and_goal)">
-        <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/amcl_init_launch.xml" if="$(var init_pose_option)">
+        <include file="$(find-pkg-share nav2_oneshot_nodes)/launch/amcl_init_launch.xml" if="$(var init_pose)">
             <arg name="x" value="$(var init_x)" />
             <arg name="y" value="$(var init_y)" />
             <arg name="yaw" value="$(var init_yaw)" />
