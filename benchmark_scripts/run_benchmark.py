@@ -177,24 +177,24 @@ class SimulatedRobotPool:
                 env=nav_env,
                 del_sigkill=True
             ),
-            OutputCapturedPopen(
-                [
-                    'ros2', 'bag', 'record',
-                    '-o', f'{self.log_dir}/../{name}_bag', # fixme
-                    '--compression-mode', 'file', '--compression-format', 'zstd',
-                    '--use-sim-time',
-                    '/map', '/map_updates',
-                    '/global_costmap/costmap', '/global_costmap/costmap_updates',
-                    '/local_costmap/costmap', '/local_costmap/costmap_updates',
-                    '/scan',
-                    '/plan',
-                    '/tf', '/tf_static', '/robot_description'
-                ],
-                f'{self.log_dir}/{name}_bag.stdout.log',
-                f'{self.log_dir}/{name}_bag.stderr.log',
-                env=nav_env,
-                del_timeout=0
-            ),
+            # OutputCapturedPopen(
+            #     [
+            #         'ros2', 'bag', 'record',
+            #         '-o', f'{self.log_dir}/../{name}_bag', # fixme
+            #         '--compression-mode', 'file', '--compression-format', 'zstd',
+            #         '--use-sim-time',
+            #         '/map', '/map_updates',
+            #         '/global_costmap/costmap', '/global_costmap/costmap_updates',
+            #         '/local_costmap/costmap', '/local_costmap/costmap_updates',
+            #         '/scan',
+            #         '/plan',
+            #         '/tf', '/tf_static', '/robot_description'
+            #     ],
+            #     f'{self.log_dir}/{name}_bag.stdout.log',
+            #     f'{self.log_dir}/{name}_bag.stderr.log',
+            #     env=nav_env,
+            #     del_timeout=0
+            # ),
             OutputCapturedPopen(
                 [
                     'ros2', 'launch', 'nav2_oneshot_nodes', 'amcl_init_launch.xml', 'use_sim_time:=true',
