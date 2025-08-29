@@ -2,7 +2,7 @@
     <arg name="use_sim_time" default="true" /> <!-- since we're simulating in Gazebo -->
 
     <arg name="name" />
-    <arg name="domain" /> <!-- centralised navigation node's domain -->
+    <arg name="namespace" /> <!-- robot's namespace as launched by Gazebo -->
     
     <arg name="model" default="waffle" />
     <arg name="map" default="$(find-pkg-share tb3_nav_launch)/map/world.yaml" />
@@ -12,8 +12,11 @@
     <arg name="params_file" default="" /> <!-- if specified will override blind -->
 
     <arg name="rviz" default="true" />
-    <include file="$(find-pkg-share tb3_nav_launch)/launch/rviz_launch.xml" if="$(var rviz)">
+    <include file="$(find-pkg-share tb3_nav_launch)/launch/rviz_launch.py" if="$(var rviz)">
         <arg name="use_sim_time" value="$(var use_sim_time)" />
+        <arg name="namespace" value="$(var namespace)" />
+        <arg name="use_namespace" value="true" />
+        <arg name="rviz_config" value="$(find-pkg-share tb3_nav_launch)/rviz/navigation.rviz" />
     </include>
 
     <arg name="blind" default="false" /> <!-- blind navigation (i.e. can't see other robot) -->
@@ -26,18 +29,22 @@
     <include file="$(find-pkg-share nav2_bringup)/launch/bringup_launch.py" if="$(var localisation)">
         <arg name="use_sim_time" value="$(var use_sim_time)" />
         <arg name="map" value="$(var map)" />
+        <arg name="namespace" value="$(var namespace)" />
+        <arg name="use_namespace" value="true" />
         <arg name="params_file" value="$(var nav2_params)" />
     </include>
 
     <include file="$(find-pkg-share tb3_nav_launch)/launch/map_navigation_launch.py" unless="$(var localisation)">
         <arg name="use_sim_time" value="$(var use_sim_time)" />
         <arg name="map" value="$(var map)" />
+        <arg name="namespace" value="$(var namespace)" />
+        <arg name="use_namespace" value="true" />
         <arg name="params_file" value="$(var nav2_params)" />
     </include>
 
-    <include file="$(find-pkg-share central_nav)/launch/robot_launch.xml">
+    <include file="$(find-pkg-share central_nav)/launch/robot_launch.py">
         <arg name="name" value="$(var name)" />
-        <arg name="domain" value="$(var domain)" />
+        <arg name="ns" value="$(var namespace)" />
         <arg name="use_sim_time" value="$(var use_sim_time)" />
     </include>
 
