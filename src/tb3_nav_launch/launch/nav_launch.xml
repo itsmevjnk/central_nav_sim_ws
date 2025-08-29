@@ -48,7 +48,9 @@
         <arg name="use_sim_time" value="$(var use_sim_time)" />
     </include>
 
-    <include file="$(find-pkg-share nav2_cancel_stopper)/launch/stopper_launch.xml" />
+    <node pkg="nav2_cancel_stopper" exec="stop_node" name="cancel_stopper" namespace="$(var namespace)">
+        <remap from="goal_status" to="navigate_to_pose/_action/status" />
+    </node>
 
     <arg name="random" default="false" />
     <arg name="random_max_cost" default="50"/>
