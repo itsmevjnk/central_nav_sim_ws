@@ -1,5 +1,7 @@
 <launch>
-    <node name="nav_wait" pkg="benchmark_tools" exec="wait_until_nav_start" output="screen">
+    <arg name="namespace" default="/" />
+
+    <node name="nav_wait" pkg="benchmark_tools" exec="wait_until_nav_start" output="screen" namespace="$(var namespace)">
         <remap from="goal_status" to="/navigate_to_pose/_action/status" />
     </node>
 </launch>

@@ -61,13 +61,11 @@ class OutputCapturedPopen(subprocess.Popen):
         return self.poll() is not None
 
 class SimulatedRobotPool:
-    def __init__(self, poses: list[tuple[float, float, float]] = [], prefix: str = 'robot', start_domain: int = 10, log_dir: str = 'log', gz_world: str | None = None, gz_headless: bool = True, rviz: bool = False):
+    def __init__(self, poses: list[tuple[float, float, float]] = [], prefix: str = 'robot', log_dir: str = 'log', gz_world: str | None = None, gz_headless: bool = True, rviz: bool = False):
         self.processes: list[list[OutputCapturedPopen] | None] = []
-        self.start_domain = start_domain
         self.prefix = prefix
         self.log_dir = log_dir
         self.rviz = rviz
-        self.this_domain = os.environ.get('ROS_DOMAIN_ID', '0')
 
         os.makedirs(log_dir, exist_ok=True)
 
@@ -107,7 +105,7 @@ class SimulatedRobotPool:
         while not self.is_ready(idx):
             time.sleep(0.25)
 
-    def add_robot(self, pose: tuple[float, float, float] = (0.0, 0.0, 0.0), idx: int | None = None, wait_ready: bool = False) -> tuple[int, str, int]:
+    def add_robot(self, pose: tuple[float, float, float] = (0.0, 0.0, 0.0), idx: int | None = None, wait_ready: bool = False) -> tuple[int, str]:
         if idx is None:
             idx = self.find_unused_idx()
         elif idx >= len(self.processes): # expand
@@ -116,20 +114,17 @@ class SimulatedRobotPool:
             self.move_robot(idx, pose)
             if wait_ready:
                 self.wait_ready(idx)
-            return (idx, f'{self.prefix}{idx}', self.start_domain + idx)
+            return (idx, f'{self.prefix}{idx}')
 
         name = f'{self.prefix}{idx}'
-        domain = self.start_domain + idx
         init_x, init_y, init_yaw = pose
 
-        nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain) # for nav2
-
-        print(f'adding robot {name} on domain {domain}')
+        print(f'adding robot {name}')
         self.processes[idx] = [
             OutputCapturedPopen(
                 [
                     'ros2', 'launch', 'tb3_multi_launch', 'spawn_robot.launch.py',
-                    'model:=waffle_bm', f'domain:={domain}', f'namespace:={name}',
+                    'model:=waffle_bm', f'namespace:={name}',
                     f'x_pose:={init_x}', f'y_pose:={init_y}', f'yaw_pose:={init_yaw}',
                     'publish_map_tf:=true'
                 ],
@@ -142,44 +137,41 @@ class SimulatedRobotPool:
         while True:
             time.sleep(0.25)
             try:
-                output = subprocess.check_output(['ros2', 'topic', 'info', f'/scan'], env=nav_env, stderr=subprocess.DEVNULL).decode()
+                output = subprocess.check_output(['ros2', 'topic', 'info', f'/{name}/scan'], stderr=subprocess.DEVNULL).decode()
             except subprocess.CalledProcessError: # topic's not up yet
                 continue
             num_publishers = int(output.splitlines()[1].split(': ')[1]) 
             if num_publishers == 0: # publisher count
                 continue
             break
-        print(f' - robot is now on domain {domain}, starting Nav2')
+        print(f' - {name} is up, starting Nav2')
 
         self.processes[idx].extend([
             OutputCapturedPopen(
                 [
                     'ros2', 'launch', 'tb3_nav_launch', 'nav_launch.xml', 
-                    f'name:={name}', f'domain:={self.this_domain}', f'rviz:={self.rviz}', 'use_sim_time:=true',
+                    f'name:={name}', f'namespace:={name}', f'rviz:={self.rviz}', 'use_sim_time:=true',
                     'init_pose:=false', 'localisation:=false'
                 ],
                 f'{self.log_dir}/{name}_nav.stdout.log',
                 f'{self.log_dir}/{name}_nav.stderr.log',
-                env=nav_env,
                 del_sigkill=True
             ),
             OutputCapturedPopen(
                 [
                     'ros2', 'launch', 'central_nav', 'robot_launch.xml',
-                    f'name:={name}', f'domain:={self.this_domain}',
+                    f'name:={name}', f'ns:={name}',
                     'use_sim_time:=true',
                     'init_goal:=false'
                 ],
                 f'{self.log_dir}/{name}_central.stdout.log',
                 f'{self.log_dir}/{name}_central.stderr.log',
-                env=nav_env,
                 del_sigkill=True
             ),
             OutputCapturedPopen(
                 ['ros2', 'launch', 'benchmark_tools', 'bumper_launch.xml', f'name:={name}'],
                 f'{self.log_dir}/{name}_bumper.stdout.log',
                 f'{self.log_dir}/{name}_bumper.stderr.log',
-                env=nav_env,
                 del_sigkill=True
             ),
             # OutputCapturedPopen(
@@ -203,11 +195,11 @@ class SimulatedRobotPool:
             OutputCapturedPopen(
                 [
                     'ros2', 'launch', 'nav2_oneshot_nodes', 'wait_until_ready_launch.xml', 'node:=bt_navigator',
+                    f'namespace:={name}',
                     f'x:={init_x}', f'y:={init_y}', f'yaw:={init_yaw}'
                 ],
                 f'{self.log_dir}/{name}_amcl_init.stdout.log',
                 f'{self.log_dir}/{name}_amcl_init.stderr.log',
-                env=nav_env,
                 del_sigkill=True
             )
         ])   
@@ -215,7 +207,7 @@ class SimulatedRobotPool:
         if wait_ready:
             self.wait_ready(idx)
 
-        return (idx, name, domain)
+        return (idx, name)
     
     def remove_robot(self, idx: int):
         if not self.has_index(idx): return
@@ -234,10 +226,11 @@ class SimulatedRobotPool:
             'ros2', 'service', 'call', '/gazebo/set_entity_state', 'gazebo_msgs/srv/SetEntityState',
             f'state: {{name: \'{name}\', pose: {{position: {{x: {x}, y: {y}, z: 0.01}}, orientation: {{x: {qx}, y: {qy}, z: {qz}, w: {qw}}}}}, reference_frame: world}}'
         ], stdout=subprocess.DEVNULL)
-        nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(self.start_domain + idx)
         self.processes[idx][-1] = OutputCapturedPopen(
-            ['ros2', 'launch', 'nav2_oneshot_nodes', 'clear_costmaps_launch.xml'],
-            env=nav_env,
+            [
+                'ros2', 'launch', 'nav2_oneshot_nodes', 'clear_costmaps_launch.xml',
+                f'namespace:={name}'
+            ],
             del_sigkill=True
         )
 
@@ -280,15 +273,14 @@ class SimulatedRobotPool:
 
         # init_x, init_y, init_yaw = self.get_pose(idx)
 
-        domain = self.start_domain + idx
-        nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain)
+        name = f'{self.prefix}{idx}'
+
         qx, qy, qz, qw = Rotation.from_euler('y', goal[2]).as_quat()
         subprocess.check_call(
             [
-                'ros2', 'topic', 'pub', '--once', '/goal_pose_alt', 'geometry_msgs/msg/PoseStamped',
+                'ros2', 'topic', 'pub', '--once', f'/{name}/goal_pose_alt', 'geometry_msgs/msg/PoseStamped',
                 f'{{header: {{frame_id: map}}, pose: {{position: {{x: {goal[0]}, y: {goal[1]}}}, orientation: {{x: {qx}, x: {qy}, x: {qz}, x: {qw}}}}}}}'
             ],
-            env=nav_env,
             stdout=subprocess.DEVNULL
         )
 
@@ -296,9 +288,9 @@ class SimulatedRobotPool:
         subprocess.check_call(
             [
                 'ros2', 'launch', 'nav2_oneshot_nodes', 'goal_launch.xml', 'use_sim_time:=true',
+                f'namespace:={name}',
                 f'x:={goal[0]}', f'y:={goal[1]}', f'yaw:={goal[2]}'
             ],
-            env=nav_env,
             stdout=f_stdout,
             stderr=f_stderr
         )
@@ -309,8 +301,6 @@ class SimulatedRobotPool:
 
         # init_x, init_y, init_yaw = self.get_pose(idx)
 
-        domain = self.start_domain + idx
-        nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain)
         # qx, qy, qz, qw = Rotation.from_euler('y', goal[2]).as_quat()
         # subprocess.check_call(
         #     [
@@ -322,25 +312,23 @@ class SimulatedRobotPool:
         # )
 
         # command nav2
+        name = f'{self.prefix}{idx}'
         return subprocess.Popen(
             [
                 'ros2', 'launch', 'nav2_oneshot_nodes', 'goal_launch.xml', 'use_sim_time:=true',
+                f'namespace:={name}',
                 f'x:={goal[0]}', f'y:={goal[1]}', f'yaw:={goal[2]}'
             ],
-            env=nav_env,
             stdout=f_stdout,
             stderr=f_stderr
         )
     
     def cancel_navigation(self, idx: int, f_stdout=None, f_stderr=None):
         if not self.has_index(idx): return
-
-        domain = self.start_domain + idx
-        nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain)
-
+        
+        name = f'{self.prefix}{idx}'
         subprocess.check_call(
-            ['ros2', 'service', 'call', '/navigate_to_pose/_action/cancel_goal', 'action_msgs/srv/CancelGoal'],
-            env=nav_env,
+            ['ros2', 'service', 'call', f'/{name}/navigate_to_pose/_action/cancel_goal', 'action_msgs/srv/CancelGoal'],
             stdout=f_stdout,
             stderr=f_stderr
         )
@@ -348,12 +336,9 @@ class SimulatedRobotPool:
     def cancel_navigation_async(self, idx: int, f_stdout=None, f_stderr=None):
         if not self.has_index(idx): return
 
-        domain = self.start_domain + idx
-        nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(domain)
-
+        name = f'{self.prefix}{idx}'
         return subprocess.Popen(
-            ['ros2', 'service', 'call', '/navigate_to_pose/_action/cancel_goal', 'action_msgs/srv/CancelGoal'],
-            env=nav_env,
+            ['ros2', 'service', 'call', f'/{name}/navigate_to_pose/_action/cancel_goal', 'action_msgs/srv/CancelGoal'],
             stdout=f_stdout,
             stderr=f_stderr
         )
@@ -498,12 +483,13 @@ def run_benchmark(robots: SimulatedRobotPool, num_robots: int, output_dir: str, 
 
     navigate_procs = []
     for i in range(len(robots.processes)):
-        nav_env = os.environ.copy(); nav_env['ROS_DOMAIN_ID'] = str(robots.start_domain + i)
         navigate_procs.append(OutputCapturedPopen(
-            ['ros2', 'launch', 'benchmark_tools', 'nav_wait_launch.xml'],
+            [
+                'ros2', 'launch', 'benchmark_tools', 'nav_wait_launch.xml',
+                f'namespace:=robot{i}'
+            ],
             f'{LOG_DIR}/robot{i}_nav_wait.stdout.log',
             f'{LOG_DIR}/robot{i}_nav_wait.stderr.log',
-            env=nav_env,
             del_sigkill=True
         ))
 
