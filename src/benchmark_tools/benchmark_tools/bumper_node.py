@@ -15,7 +15,7 @@ class BumperNode(Node):
         self.telemetry_pub = self.create_publisher(String, 'telemetry', qos.qos_profile_system_default)
 
         self.collided_robot = set(); self.collided_static = set()
-        self.create_subscription(ContactsState, '/bumper_states', self.bumper_cb, qos.qos_profile_sensor_data)
+        self.create_subscription(ContactsState, 'bumper_states', self.bumper_cb, qos.qos_profile_sensor_data)
 
     def bumper_cb(self, data: ContactsState):
         collided_robot = set(); collided_static = set()

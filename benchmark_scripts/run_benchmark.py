@@ -169,7 +169,10 @@ class SimulatedRobotPool:
                 del_sigkill=True
             ),
             OutputCapturedPopen(
-                ['ros2', 'launch', 'benchmark_tools', 'bumper_launch.xml', f'name:={name}'],
+                [
+                    'ros2', 'launch', 'benchmark_tools', 'bumper_launch.xml',
+                    f'name:={name}', f'namespace:={name}'
+                ],
                 f'{self.log_dir}/{name}_bumper.stdout.log',
                 f'{self.log_dir}/{name}_bumper.stderr.log',
                 del_sigkill=True
