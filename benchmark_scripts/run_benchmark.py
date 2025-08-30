@@ -216,7 +216,12 @@ class SimulatedRobotPool:
         if not self.has_index(idx): return
         name = f'{self.prefix}{idx}'
         print(f'deleting robot {name}')
-        subprocess.check_call(['ros2', 'service', 'call', '/delete_entity', 'gazebo_msgs/srv/DeleteEntity', f'name: {name}'], stdout=subprocess.DEVNULL)
+        while True:
+            try:
+                subprocess.check_call(['ros2', 'service', 'call', '/delete_entity', 'gazebo_msgs/srv/DeleteEntity', f'name: {name}'], stdout=subprocess.DEVNULL, timeout=5)
+                break
+            except subprocess.TimeoutExpired:
+                print(f' - /delete_entity service call timed out, trying again')
         self.processes[idx] = None # will trigger SIGKILL
     
     def move_robot(self, idx: int, pose: tuple[float, float, float]):
@@ -225,10 +230,16 @@ class SimulatedRobotPool:
         name = f'{self.prefix}{idx}'
         x, y, yaw = pose
         qx, qy, qz, qw = Rotation.from_euler('z', yaw).as_quat()
-        subprocess.check_call([
-            'ros2', 'service', 'call', '/gazebo/set_entity_state', 'gazebo_msgs/srv/SetEntityState',
-            f'state: {{name: \'{name}\', pose: {{position: {{x: {x}, y: {y}, z: 0.01}}, orientation: {{x: {qx}, y: {qy}, z: {qz}, w: {qw}}}}}, reference_frame: world}}'
-        ], stdout=subprocess.DEVNULL)
+        while True:
+            try:
+                subprocess.check_call([
+                    'ros2', 'service', 'call', '/gazebo/set_entity_state', 'gazebo_msgs/srv/SetEntityState',
+                    f'state: {{name: \'{name}\', pose: {{position: {{x: {x}, y: {y}, z: 0.01}}, orientation: {{x: {qx}, y: {qy}, z: {qz}, w: {qw}}}}}, reference_frame: world}}',
+                    timeout=5
+                ], stdout=subprocess.DEVNULL)
+                break
+            except subprocess.TimeoutExpired:
+                print(f' - /gazebo/set_entity_state service call timed out, trying again')
         self.processes[idx][-1] = OutputCapturedPopen(
             [
                 'ros2', 'launch', 'nav2_oneshot_nodes', 'clear_costmaps_launch.xml',
