@@ -12,7 +12,7 @@ class BumperNode(Node):
         self.robot_name = self.declare_parameter('robot_name', 'robot').get_parameter_value().string_value
         
         self.active = None # undetermined
-        self.telemetry_pub = self.create_publisher(String, 'telemetry', qos.qos_profile_system_default)
+        self.telemetry_pub = self.create_publisher(String, '/telemetry', qos.qos_profile_system_default)
 
         self.collided_robot = set(); self.collided_static = set()
         self.create_subscription(ContactsState, 'bumper_states', self.bumper_cb, qos.qos_profile_sensor_data)
