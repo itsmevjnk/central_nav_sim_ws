@@ -234,9 +234,8 @@ class SimulatedRobotPool:
             try:
                 subprocess.check_call([
                     'ros2', 'service', 'call', '/gazebo/set_entity_state', 'gazebo_msgs/srv/SetEntityState',
-                    f'state: {{name: \'{name}\', pose: {{position: {{x: {x}, y: {y}, z: 0.01}}, orientation: {{x: {qx}, y: {qy}, z: {qz}, w: {qw}}}}}, reference_frame: world}}',
-                    timeout=5
-                ], stdout=subprocess.DEVNULL)
+                    f'state: {{name: \'{name}\', pose: {{position: {{x: {x}, y: {y}, z: 0.01}}, orientation: {{x: {qx}, y: {qy}, z: {qz}, w: {qw}}}}}, reference_frame: world}}'
+                ], stdout=subprocess.DEVNULL, timeout=5)
                 break
             except subprocess.TimeoutExpired:
                 print(f' - /gazebo/set_entity_state service call timed out, trying again')
